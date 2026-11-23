@@ -139,6 +139,13 @@ h3{font-size:1.2rem;margin:22px 0 10px;font-weight:600}
 .house .roof{font-size:2.6rem}
 .lt{font-size:2rem;font-weight:700}
 
+/* Frise ABC */
+.abcGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:10px}
+.abcKey{background:var(--card);border-radius:18px;box-shadow:0 4px 0 var(--shadow);padding:8px 4px;display:flex;flex-direction:column;align-items:center;gap:2px;transition:transform .1s}
+.abcKey b{font-size:1.9rem;color:var(--pink);line-height:1.1}
+.abcKey b small{font-size:1.3rem;color:var(--violet);margin-left:4px}
+.abcKey span{font-size:1.6rem}
+
 /* Clavier */
 .wordbox{flex-basis:100%;display:flex;justify-content:center;gap:6px;flex-wrap:wrap;margin-top:6px}
 .lbox{width:44px;height:54px;border-radius:12px;background:var(--card);border:3px solid var(--shadow);display:grid;place-items:center;font-size:2rem;font-weight:700;color:var(--ink)}
@@ -311,6 +318,16 @@ th{font-weight:600}
     <div class="canvasBox"><canvas id="cv"></canvas></div>
     <div class="palette" id="palette"></div>
     <div class="palette" id="tools"></div>
+  </section>
+
+  <!-- Frise ABC -->
+  <section id="abc" class="hidden">
+    <div class="bar">
+      <button class="round" data-home aria-label="Retour">🏠</button>
+      <div class="dtitle">Ma frise ABC</div>
+      <button class="round" id="abcSing" aria-label="Réciter l’alphabet">🎵</button>
+    </div>
+    <div class="abcGrid" id="abcGrid"></div>
   </section>
 
   <!-- Cahier -->
@@ -520,7 +537,7 @@ const BRAVO = ['Bravo !', 'Super !', 'Génial !', 'Tu es trop forte !', 'Excelle
 const ENCORE = ['Presque ! Essaie encore.', 'Oups, regarde bien et réessaie.', 'Pas tout à fait, essaie encore.', 'Ce n’est pas grave, réessaie !', 'Prends ton temps et réessaie.'];
 
 /* ---------- Écrans ---------- */
-const SCREENS = ['setup', 'menu', 'game', 'end', 'album', 'draw', 'color', 'write', 'gate', 'parent', 'pause'];
+const SCREENS = ['setup', 'menu', 'game', 'end', 'album', 'draw', 'color', 'write', 'abc', 'gate', 'parent', 'pause'];
 let cur = 'menu';
 function show(id) {
   cur = id;
@@ -543,7 +560,9 @@ const GAMES = {
   addition: { name: 'Additions',         icon: '➕', cat: 'Compter',   color: 'var(--violet)', round: roundAddition },
   lettres:  { name: 'Les lettres',       icon: '🔤', cat: 'Lire',      color: 'var(--green)',  round: roundLettres },
   sons:     { name: 'Sons et rimes',      icon: '👏', cat: 'Lire',      color: 'var(--pink)',   round: roundSyllabes },
-  ecrire:   { name: 'J’écris',           icon: '⌨️', cat: 'Lire',      color: 'var(--blue)',   round: roundEcrire }
+  ecrire:   { name: 'J’écris',           icon: '⌨️', cat: 'Lire',      color: 'var(--blue)',   round: roundEcrire },
+  alphabet: { name: 'L’alphabet',        icon: '🔠', cat: 'Lire',      color: 'var(--pink)',   round: roundAlphabet },
+  frise:    { name: 'Ma frise ABC',      icon: '📜', cat: 'Lire',      color: 'var(--gold)',   open: () => openFrise() }
 };
 const CATS = { 'Réfléchir': '🧠 Réfléchir', 'Observer': '👀 Observer', 'Compter': '🔢 Compter', 'Lire': '📖 Lire et écrire' };
 const STICKERS = ['🦄','🌈','🧁','🎀','👑','🦋','🌸','🐱','🐰','🐼','🦊','🐬','🍓','🍭','🎈','⭐','🌙','☀️','🌷','🐞','🐢','🦒','🐧','🍉','🍦','🎠','🎨','💎','🏰','🧚‍♀️'];
@@ -567,8 +586,8 @@ function renderMenu() {
       const b = document.createElement('button');
       b.className = 'tile'; b.style.setProperty('--c', g.color);
       const lv = stat(id).level;
-      b.innerHTML = `<span class="ic">${g.icon}</span><span class="nm">${g.name}</span><span class="lv" aria-label="Niveau ${lv}">${'⭐'.repeat(lv)}${'☆'.repeat(3 - lv)}</span>`;
-      b.onclick = () => startGame(id);
+      b.innerHTML = `<span class="ic">${g.icon}</span><span class="nm">${g.name}</span>` + (g.open ? `<span class="lv">Écoute les lettres</span>` : `<span class="lv" aria-label="Niveau ${lv}">${'⭐'.repeat(lv)}${'☆'.repeat(3 - lv)}</span>`);
+      b.onclick = () => g.open ? g.open() : startGame(id);
       grid.appendChild(b);
     });
     box.appendChild(grid);
@@ -589,12 +608,12 @@ function startGame(id) {
 }
 function startDaily() {
   if (timeUp()) return showPause();
-  state = { mode: 'daily', seq: fresh('dailyG', Object.keys(GAMES), 5), round: 0, total: 5, earned: 0, errors: 0, busy: false, token: 0 };
+  state = { mode: 'daily', seq: fresh('dailyG', gameIds(), 5), round: 0, total: 5, earned: 0, errors: 0, busy: false, token: 0 };
   show('game'); nextRound();
 }
 function startMix() {
   if (timeUp()) return showPause();
-  state = { mode: 'mix', seq: fresh('mixG', Object.keys(GAMES), 6), round: 0, total: 6, earned: 0, errors: 0, busy: false, token: 0 };
+  state = { mode: 'mix', seq: fresh('mixG', gameIds(), 6), round: 0, total: 6, earned: 0, errors: 0, busy: false, token: 0 };
   show('game'); nextRound();
 }
 function nextRound() {
@@ -1311,6 +1330,88 @@ $('toWrite').onclick = () => {
 $('readPaper').onclick = () => { const t = (data.cahier || '').trim(); say(t ? t.toLowerCase() : 'Ta page est vide. Écris quelque chose !', false); };
 $('clearPaper').onclick = () => { data.cahier = ''; save(); renderPaper(); };
 
+/* ===== 13. L’alphabet ===== */
+function gameIds() { return Object.keys(GAMES).filter(k => !GAMES[k].open); }
+const AZ = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+const azMax = L => [10, 16, 26][L - 1];
+const ABC_MOTS = {
+  A: ['ananas', '🍍'], B: ['ballon', '🎈'], C: ['canard', '🦆'], D: ['dauphin', '🐬'], E: ['éléphant', '🐘'], F: ['fraise', '🍓'],
+  G: ['gâteau', '🎂'], H: ['hibou', '🦉'], I: ['île', '🏝️'], J: ['jupe', '👗'], K: ['koala', '🐨'], L: ['lapin', '🐰'],
+  M: ['maison', '🏠'], N: ['nuage', '☁️'], O: ['orange', '🍊'], P: ['papillon', '🦋'], Q: ['quille', '🎳'], R: ['robot', '🤖'],
+  S: ['soleil', '☀️'], T: ['tortue', '🐢'], U: ['usine', '🏭'], V: ['vache', '🐄'], W: ['wagon', '🚃'], X: ['taxi', '🚕'],
+  Y: ['yoyo', '🪀'], Z: ['zèbre', '🦓']
+};
+function vAlphaTrou(L) {
+  const start = one('azT' + L, Array.from({ length: azMax(L) - 3 }, (_, i) => i));
+  const seq = AZ.slice(start, start + 4), hole = 1 + rand(3), ans = seq[hole];
+  numCells(seq.map((c, i) => i === hole ? '?' : c));
+  setPrompt(say3('azT', ['Quelle lettre manque dans l’alphabet ?', 'Une lettre s’est cachée ! Laquelle ?']));
+  const others = sample(AZ.filter(x => !seq.includes(x)), L === 3 ? 3 : 2);
+  choices(shuffle([ans, ...others]).map(c => ({ html: c, cls: 'num', ok: c === ans, msg: `Bravo ! ${seq.join(', ')} !` })), L === 3);
+}
+function vAlphaApres(L) {
+  const avant = L > 1 && rand(2) === 1;
+  const i = one('azA' + L, Array.from({ length: azMax(L) - 1 }, (_, k) => avant ? k + 1 : k));
+  const l = AZ[i], ans = AZ[avant ? i - 1 : i + 1];
+  numCells(avant ? ['?', l] : [l, '?']);
+  setPrompt(avant ? `Quelle lettre vient juste avant ${l} ?` : `Quelle lettre vient juste après ${l} ?`);
+  const others = sample(AZ.filter(x => x !== ans && x !== l), L === 3 ? 3 : 2);
+  choices(shuffle([ans, ...others]).map(c => ({ html: c, cls: 'num', ok: c === ans, msg: avant ? `Bravo ! ${ans}, puis ${l} !` : `Bravo ! ${l}, puis ${ans} !` })), L === 3);
+}
+function vAlphaEcoute(L) {
+  const l = one('azE', AZ.slice(0, azMax(L)));
+  const pool = L === 1 ? AZ.filter(x => x !== l) : [...(CONFUS[l] || []), ...AZ].filter(x => x !== l);
+  const others = [...new Set(L === 1 ? sample(pool, 2) : [...(CONFUS[l] || []), ...sample(pool, 3)])].filter(x => x !== l).slice(0, L === 3 ? 3 : 2);
+  $('stage').innerHTML = '<div class="big1">👂</div>';
+  $('prompt').textContent = 'Écoute bien et touche la lettre que tu entends.';
+  say(`Touche la lettre ${l}.`);
+  choices(shuffle([l, ...others]).map(c => ({ html: c, cls: 'num', ok: c === l, msg: `Bravo ! C’était la lettre ${l}, ${l} comme ${ABC_MOTS[l][0]} !` })), L === 3);
+}
+function vAlphaOrdre(L) {
+  const n = [4, 5, 6][L - 1];
+  const start = one('azO' + L, Array.from({ length: azMax(L) - n + 1 }, (_, i) => i));
+  const seq = AZ.slice(start, start + n);
+  let next = 0;
+  setPrompt('Touche les lettres dans l’ordre de l’alphabet !');
+  shuffle(seq.map((c, i) => ({ c, i }))).forEach(it => {
+    const b = document.createElement('button'); b.className = 'opt num'; b.textContent = it.c; b.setAttribute('aria-label', 'Lettre ' + it.c);
+    b.onclick = () => {
+      if (state.busy || b.classList.contains('oui')) return;
+      if (it.i === next) {
+        next++; b.classList.add('oui'); say(it.c, false);
+        const bd = document.createElement('span'); bd.className = 'badge'; bd.textContent = next; b.appendChild(bd);
+        if (next === n) win(`Bravo ! ${seq.join(', ')} !`);
+      } else { shake(b); lose(); }
+    };
+    $('opts').appendChild(b);
+  });
+}
+function vVoyelles(L) {
+  const total = [6, 9, 12][L - 1], nv = 2 + rand(3);
+  const V = ['A', 'E', 'I', 'O', 'U', 'Y'], C = AZ.filter(x => !V.includes(x));
+  const items = shuffle([...Array.from({ length: nv }, () => pick(V)), ...Array.from({ length: total - nv }, () => pick(C))]);
+  setPrompt(say3('voy', ['Les voyelles, ce sont A, E, I, O, U et Y. Touche toutes les voyelles !', 'Chasse aux voyelles ! A, E, I, O, U, Y. Touche-les toutes !']));
+  findAll(items.map(l => ({ html: `<b class="lt">${l}</b>`, aria: l, ok: V.includes(l) })), 'Bravo ! Tu as trouvé toutes les voyelles !');
+}
+function roundAlphabet(L) { runVariant('alphabet', [vAlphaEcoute, vAlphaTrou, vAlphaOrdre, vAlphaApres, vVoyelles], L); }
+
+/* ---------- Ma frise ABC ---------- */
+function openFrise() {
+  if (timeUp()) return showPause();
+  const g = $('abcGrid'); g.innerHTML = '';
+  AZ.forEach(l => {
+    const [mot, e] = ABC_MOTS[l];
+    const b = document.createElement('button'); b.className = 'abcKey';
+    b.innerHTML = `<b>${l}<small>${l.toLowerCase()}</small></b><span>${e}</span>`;
+    b.setAttribute('aria-label', `${l} comme ${mot}`);
+    b.onclick = () => { b.classList.add('flash'); setTimeout(() => b.classList.remove('flash'), 600); say(`${l}. ${l} comme ${mot}.`, false); };
+    g.appendChild(b);
+  });
+  show('abc');
+  say('Voici l’alphabet ! Touche une lettre pour l’entendre.', false);
+}
+$('abcSing').onclick = () => say(AZ.join(', ') + '. Bravo !', false);
+
 /* ---------- Album ---------- */
 $('toAlbum').onclick = () => {
   const g = $('albumGrid'); g.innerHTML = '';
@@ -1595,7 +1696,7 @@ function openParent() {
   $('pStk').textContent = `${data.stickers.length} sur ${STICKERS.length}`;
   $('pStreak').textContent = data.daily.streak || 0;
   const tb = $('pStats'); tb.innerHTML = '';
-  Object.entries(GAMES).forEach(([id, g]) => {
+  Object.entries(GAMES).filter(([, g]) => !g.open).forEach(([id, g]) => {
     const s = stat(id); const tot = s.ok + s.ko;
     const tr = document.createElement('tr');
     tr.innerHTML = `<td>${g.icon} ${g.name}</td><td>${s.played}</td><td>${tot ? Math.round(s.ok / tot * 100) + ' %' : '–'}</td>

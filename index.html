@@ -139,6 +139,10 @@ h3{font-size:1.2rem;margin:22px 0 10px;font-weight:600}
 .house .roof{font-size:2.6rem}
 .lt{font-size:2rem;font-weight:700}
 
+/* Syllabes */
+.syl{font-family:"Fredoka","Nunito",sans-serif;text-transform:none;letter-spacing:.02em}
+.letter.syl{font-size:5rem}
+
 /* Frise ABC */
 .abcGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:10px}
 .abcKey{background:var(--card);border-radius:18px;box-shadow:0 4px 0 var(--shadow);padding:8px 4px;display:flex;flex-direction:column;align-items:center;gap:2px;transition:transform .1s}
@@ -575,6 +579,7 @@ const GAMES = {
   sons:     { name: 'Sons et rimes',      icon: '👏', cat: 'Lire',      color: 'var(--pink)',   round: roundSyllabes },
   ecrire:   { name: 'J’écris',           icon: '⌨️', cat: 'Lire',      color: 'var(--blue)',   round: roundEcrire },
   alphabet: { name: 'L’alphabet',        icon: '🔠', cat: 'Lire',      color: 'var(--pink)',   round: roundAlphabet },
+  syllabes: { name: 'Sons et syllabes',  icon: '🔡', cat: 'Lire',      color: 'var(--violet)', round: roundPhonics },
   frise:    { name: 'Ma frise ABC',      icon: '📜', cat: 'Lire',      color: 'var(--gold)',   open: () => openFrise() }
 };
 const CATS = { 'Réfléchir': '🧠 Réfléchir', 'Observer': '👀 Observer', 'Compter': '🔢 Compter', 'Lire': '📖 Lire et écrire' };
@@ -1425,6 +1430,77 @@ function openFrise() {
   say('Voici l’alphabet ! Touche une lettre pour l’entendre.', false);
 }
 $('abcSing').onclick = () => say(AZ.join(', ') + '. Bravo !', false);
+
+/* ===== 14. Sons et syllabes ===== */
+const CONS = [['m', 'l', 'r', 's', 'f'], ['m', 'l', 'r', 's', 'f', 'p', 't', 'n', 'v', 'ch'], ['m', 'l', 'r', 's', 'f', 'p', 't', 'n', 'v', 'ch', 'b']];
+const VOY = [['a', 'i', 'o'], ['a', 'i', 'o', 'u', 'é'], ['a', 'i', 'o', 'u', 'é', 'ou', 'on']];
+const syllsOf = L => CONS[L - 1].flatMap(c => VOY[L - 1].map(v => c + v));
+function syllDistract(syl, L, k) {
+  const [c, v] = splitSyl(syl), out = new Set();
+  const cs = CONS[L - 1], vs = VOY[L - 1];
+  while (out.size < k) {
+    const cand = rand(2) ? pick(cs) + v : c + pick(vs);
+    if (cand !== syl) out.add(cand);
+  }
+  return [...out];
+}
+function splitSyl(s) { const c = s.startsWith('ch') ? 'ch' : s[0]; return [c, s.slice(c.length)]; }
+function vSyllEcoute(L) {
+  const syl = one('syE' + L, syllsOf(L));
+  $('stage').innerHTML = '<div class="big1">👂</div>';
+  $('prompt').textContent = 'Écoute bien et touche la syllabe que tu entends.';
+  say(`Touche la syllabe… ${syl}.`);
+  choices(shuffle([syl, ...syllDistract(syl, L, L === 3 ? 3 : 2)]).map(s => ({ html: s, cls: 'num syl', ok: s === syl, msg: `Bravo ! C’était ${syl} !` })), L === 3);
+}
+function vSyllAssemble(L) {
+  const syl = one('syA' + L, syllsOf(L)), [c, v] = splitSyl(syl);
+  $('stage').innerHTML = `<div class="eq"><span class="n syl">${c}</span><b>+</b><span class="n syl">${v}</span><b>=</b><span class="cell q">?</span></div>`;
+  setPrompt(say3('syA', ['Quand on colle ces deux sons, qu’est-ce qu’on lit ?', 'Mets les deux sons ensemble. Ça fait quoi ?']));
+  choices(shuffle([syl, ...syllDistract(syl, L, 2)]).map(s => ({ html: s, cls: 'num syl', ok: s === syl, msg: `Bravo ! ${c} et ${v}, ça fait ${syl} !` })));
+}
+const SYLL_IMG = [
+  ['pa', 'papillon', '🦋'], ['ma', 'maison', '🏠'], ['lu', 'lune', '🌙'], ['ro', 'robot', '🤖'], ['ba', 'ballon', '🎈'], ['la', 'lapin', '🐰'],
+  ['so', 'soleil', '☀️'], ['to', 'tortue', '🐢'], ['po', 'pomme', '🍎'], ['ti', 'tigre', '🐯'], ['fu', 'fusée', '🚀'], ['ri', 'riz', '🍚'],
+  ['mo', 'moto', '🏍️'], ['cha', 'chat', '🐱'], ['va', 'vache', '🐄'], ['pi', 'piano', '🎹'], ['li', 'lit', '🛏️'], ['vé', 'vélo', '🚲'],
+  ['bé', 'bébé', '👶'], ['nu', 'nuage', '☁️'], ['ca', 'canard', '🦆'], ['sa', 'sapin', '🎄'], ['mou', 'mouton', '🐑'], ['bou', 'bougie', '🕯️'], ['pou', 'poule', '🐔']
+];
+function vSyllLire(L) {
+  const pool = SYLL_IMG.filter(x => L === 3 || (x[0].length === 2 && (L === 2 || /[aio]$/.test(x[0]))));
+  const t = one('syL' + L, pool);
+  const others = sample(SYLL_IMG.filter(x => x[0] !== t[0] && (L === 3 ? true : x[0][0] !== t[0][0])), L === 3 ? 3 : 2);
+  $('stage').innerHTML = `<div class="letter syl">${t[0]}</div>`;
+  setPrompt(say3('syL', ['Lis cette syllabe, puis trouve l’image qui commence comme ça.', 'Essaie de lire ce son. Quelle image commence pareil ?']));
+  choices(shuffle([t, ...others]).map(x => ({ html: x[2], aria: x[1], ok: x === t, msg: `Oui ! ${t[0]}… ${t[1]} !` })), L === 3);
+}
+const SON_GROUPES = {
+  s: [['🐍', 'serpent'], ['☀️', 'soleil'], ['🎄', 'sapin'], ['🐭', 'souris']],
+  f: [['🚀', 'fusée'], ['🍓', 'fraise'], ['🌸', 'fleur'], ['🔥', 'feu']],
+  r: [['🤖', 'robot'], ['🦊', 'renard'], ['👗', 'robe'], ['🤴', 'roi']],
+  m: [['🏠', 'maison'], ['🏍️', 'moto'], ['🐑', 'mouton'], ['✋', 'main']],
+  l: [['🌙', 'lune'], ['🐰', 'lapin'], ['🦁', 'lion'], ['🛏️', 'lit']],
+  p: [['🦋', 'papillon'], ['🍎', 'pomme'], ['🐟', 'poisson'], ['🍞', 'pain']],
+  ch: [['🐱', 'chat'], ['🐶', 'chien'], ['🎩', 'chapeau'], ['🐴', 'cheval']],
+  v: [['🐄', 'vache'], ['🚲', 'vélo'], ['🚗', 'voiture'], ['🎻', 'violon']],
+  t: [['🐢', 'tortue'], ['🐯', 'tigre'], ['🚂', 'train'], ['🍅', 'tomate']],
+  b: [['🎈', 'ballon'], ['⛵', 'bateau'], ['🍌', 'banane'], ['👶', 'bébé']]
+};
+const sonKeys = L => Object.keys(SON_GROUPES).slice(0, [5, 8, 10][L - 1]);
+function vSonDebut(L) {
+  const keys = sonKeys(L), k = one('sonD' + L, keys), [t, r] = sample(SON_GROUPES[k], 2);
+  const others = sample(keys.filter(x => x !== k), L === 3 ? 3 : 2).map(x => pick(SON_GROUPES[x]));
+  const order = shuffle([r, ...others]);
+  addCells([t[0]], 'big1');
+  setPrompt(`${t[1]}. Quel mot commence par le même son que ${t[1]} ? Écoute : ${order.map(o => o[1]).join(', ')}.`);
+  choices(order.map(o => ({ html: o[0], aria: o[1], ok: o === r, msg: `Bravo ! ${t[1]}, ${r[1]} : ils commencent pareil !` })), order.length === 4);
+}
+function vSonLettre(L) {
+  const keys = sonKeys(L), k = one('sonL' + L, keys), t = pick(SON_GROUPES[k]);
+  const others = sample(keys.filter(x => x !== k), L === 3 ? 3 : 2);
+  addCells([t[0]], 'big1');
+  setPrompt(`${t[1]} ! Quelle lettre fait le premier son de ${t[1]} ?`);
+  choices(shuffle([k, ...others]).map(x => ({ html: x, cls: 'num syl', ok: x === k, msg: `Bravo ! ${t[1]} commence par le son de ${k === 'ch' ? 'c, h' : k} !` })), L === 3);
+}
+function roundPhonics(L) { runVariant('syllabes', [vSyllEcoute, vSonDebut, vSyllAssemble, vSyllLire, vSonLettre], L); }
 
 /* ---------- Album ---------- */
 $('toAlbum').onclick = () => {

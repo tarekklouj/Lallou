@@ -3,27 +3,27 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Petits Malins</title>
+<title>Petite Maline</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#FFE9A8; --ink:#2B2E7A; --card:#FFFFFF; --soft:#FFF6D6;
-  --pink:#FF6F91; --green:#2FB37F; --blue:#4C9BE8; --violet:#8A6FE8; --orange:#FF9F43;
-  --shadow:#E8C96A;
+  --bg:#FFE4F1; --ink:#6B2C6E; --card:#FFFFFF; --soft:#FFF2F9;
+  --pink:#FF5FA2; --green:#2FBF8F; --blue:#B07CF5; --violet:#9B5DE5; --orange:#FF8FB1;
+  --shadow:#F5B8D6;
   box-sizing:border-box;
   padding-top:env(safe-area-inset-top,0px);
   padding-bottom:env(safe-area-inset-bottom,0px);
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-    --bg:#1E2150; --ink:#FFF3CC; --card:#2D3170; --soft:#262A62; --shadow:#14163A;
+    --bg:#3A1E4A; --ink:#FFE4F3; --card:#522A66; --soft:#47245A; --shadow:#2A1236;
     color-scheme:dark;
   }
 }
 :root[data-theme="dark"]{
-  --bg:#1E2150; --ink:#FFF3CC; --card:#2D3170; --soft:#262A62; --shadow:#14163A;
+  --bg:#3A1E4A; --ink:#FFE4F3; --card:#522A66; --soft:#47245A; --shadow:#2A1236;
   color-scheme:dark;
 }
 *,*::before,*::after{box-sizing:inherit}
@@ -33,7 +33,11 @@ body{
   font-family:"Fredoka","Nunito","Arial Rounded MT Bold",system-ui,sans-serif;
   font-weight:500; -webkit-tap-highlight-color:transparent; user-select:none;
 }
-.wrap{max-width:640px;margin:0 auto;padding:16px 18px 40px}
+.wrap{max-width:640px;margin:0 auto;padding:16px 18px 40px;position:relative;z-index:1}
+.deco{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+.deco span{position:absolute;font-size:1.8rem;opacity:.45;animation:float 6s ease-in-out infinite}
+@keyframes float{50%{transform:translateY(-12px) rotate(8deg)}}
+.rainbow{height:10px;border-radius:999px;margin:4px 0 6px;background:linear-gradient(90deg,#FF5FA2,#FF8FB1,#FFD166,#7EE0B5,#8EC5FF,#B07CF5)}
 header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
 .logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:1.6rem;letter-spacing:-.01em}
 .logo span{font-size:2.2rem}
@@ -52,6 +56,7 @@ button:focus-visible{outline:4px solid var(--blue);outline-offset:3px}
 }
 .tile:active{transform:translateY(4px);box-shadow:0 2px 0 var(--c)}
 .tile .ic{font-size:3rem;line-height:1}
+.tile{background:linear-gradient(180deg,var(--card) 60%,var(--soft))}
 .tile .nm{font-size:1.2rem;font-weight:600}
 .tile:last-child:nth-child(odd){grid-column:1/-1}
 
@@ -89,8 +94,8 @@ button:focus-visible{outline:4px solid var(--blue);outline-offset:3px}
 /* Mémoire */
 .mem{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;max-width:420px;margin:0 auto}
 .card{
-  aspect-ratio:3/4;border-radius:20px;background:var(--violet);font-size:2.4rem;
-  box-shadow:0 5px 0 #5E47B8;display:grid;place-items:center;color:#fff;
+  aspect-ratio:3/4;border-radius:20px;background:linear-gradient(135deg,#FF5FA2,#B07CF5);font-size:2.4rem;
+  box-shadow:0 5px 0 #8A3FB8;display:grid;place-items:center;color:#fff;
 }
 .card.open{background:var(--card);color:inherit;box-shadow:0 5px 0 var(--shadow)}
 .card.done{background:var(--green);box-shadow:0 5px 0 #1E8A60}
@@ -114,14 +119,23 @@ button:focus-visible{outline:4px solid var(--blue);outline-offset:3px}
 </style>
 </head>
 <body>
+<div class="deco" aria-hidden="true">
+  <span style="top:8%;left:4%">🌸</span>
+  <span style="top:22%;right:5%;animation-delay:1s">🦋</span>
+  <span style="top:48%;left:2%;animation-delay:2s">💖</span>
+  <span style="top:66%;right:3%;animation-delay:.5s">✨</span>
+  <span style="bottom:6%;left:8%;animation-delay:1.5s">🌷</span>
+  <span style="bottom:12%;right:10%;animation-delay:2.5s">⭐</span>
+</div>
 <div class="wrap">
   <header>
-    <div class="logo"><span>🦉</span>Petits Malins</div>
+    <div class="logo"><span>🦄</span>Petite Maline</div>
     <div class="stars" aria-label="Étoiles gagnées">⭐ <b id="starCount">0</b></div>
   </header>
+  <div class="rainbow" aria-hidden="true"></div>
 
   <section id="menu">
-    <p class="hello">Coucou&nbsp;! Choisis un jeu pour faire travailler ta tête.</p>
+    <p class="hello">Coucou ma championne&nbsp;! ✨ Choisis un jeu pour faire travailler ta tête.</p>
     <div class="menu" id="tiles"></div>
     <p class="parent">Pour les parents&nbsp;: chaque consigne est lue à voix haute (touche 🔊 pour la réécouter). Une partie dure environ 3 minutes.</p>
   </section>
@@ -138,7 +152,7 @@ button:focus-visible{outline:4px solid var(--blue);outline-offset:3px}
   </section>
 
   <section id="end" class="hidden end">
-    <div class="big">🏆</div>
+    <div class="big">👑</div>
     <h2>Bravo&nbsp;!</h2>
     <p id="endText"></p>
     <button class="btn" id="again">Rejouer</button>
@@ -228,7 +242,7 @@ function win(earn = 1) {
   setStars(stars + earn);
   state.round++;
   renderDots();
-  const p = $('pop'); p.innerHTML = '<div>⭐</div>';
+  const p = $('pop'); p.innerHTML = '<div>' + pick(['⭐', '💖', '🌈', '🦄', '🌸', '👑']) + '</div>';
   say(pick(BRAVO), false);
   setTimeout(() => { p.innerHTML = ''; nextRound(); }, 1500);
 }
@@ -257,7 +271,7 @@ function options(items, correct, opts = {}) {
 }
 
 /* 1. Suites logiques */
-const SUITE_POOL = ['🔴', '🔵', '🟡', '🟢', '🟣', '⭐', '🌙', '❤️', '🍎', '🐟', '🌸', '🐞'];
+const SUITE_POOL = ['🌸', '💖', '⭐', '🦋', '🌈', '🍓', '🦄', '🌙', '🎀', '🐞', '🌷', '🧁'];
 function roundSuite() {
   const types = state.round < 2 ? ['AB', 'AB', 'AAB'] : ['AB', 'AAB', 'ABB', 'ABC'];
   const type = pick(types);
@@ -324,7 +338,7 @@ function roundOmbre() {
 }
 
 /* 5. Mémoire */
-const MEMO_POOL = ['🐶', '🐱', '🦁', '🐸', '🐵', '🐧', '🦄', '🐙', '🍓', '🌈', '🚀', '⚽'];
+const MEMO_POOL = ['🦄', '🐱', '🐰', '🦋', '🐼', '🧁', '🌈', '🍓', '👑', '🎀', '🌸', '🐬'];
 function roundMemo() {
   const pairs = sample(MEMO_POOL, 4);
   const deck = shuffle([...pairs, ...pairs]);
@@ -332,7 +346,7 @@ function roundMemo() {
   $('opts').appendChild(grid);
   let open = [], found = 0, lock = false;
   deck.forEach(e => {
-    const c = document.createElement('button'); c.className = 'card'; c.textContent = '?'; c.setAttribute('aria-label', 'Carte cachée');
+    const c = document.createElement('button'); c.className = 'card'; c.textContent = '✨'; c.setAttribute('aria-label', 'Carte cachée');
     c.onclick = () => {
       if (lock || c.classList.contains('open') || c.classList.contains('done')) return;
       c.classList.add('open'); c.textContent = e;
@@ -349,7 +363,7 @@ function roundMemo() {
           }, 400);
         } else {
           setTimeout(() => {
-            [a, b].forEach(x => { x.c.classList.remove('open'); x.c.textContent = '?'; });
+            [a, b].forEach(x => { x.c.classList.remove('open'); x.c.textContent = '✨'; });
             open = []; lock = false;
           }, 1000);
         }

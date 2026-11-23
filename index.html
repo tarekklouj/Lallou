@@ -346,6 +346,13 @@ th{font-weight:600}
     <div class="panel">
       <h3>Réglages</h3>
       <div class="row"><span>Consignes lues à voix haute</span><button class="sw2" id="pVoice" aria-label="Voix"></button></div>
+      <div class="row"><span>Voix</span><select id="pVoiceName" style="max-width:62%"></select></div>
+      <div class="row"><span>Vitesse</span>
+        <select id="pRate"><option value="0.85">Lente</option><option value="0.95">Normale</option><option value="1.05">Rapide</option></select>
+      </div>
+      <button class="btn ghost small" id="pTest">🔊 Écouter la voix</button>
+      <p class="note" id="pVoiceNote"></p>
+      <p class="note">Pour une voix encore plus naturelle, téléchargez une voix française «&nbsp;améliorée&nbsp;» ou «&nbsp;premium&nbsp;» dans les réglages de l’appareil, puis choisissez-la ici.</p>
       <div class="row"><span>Petits sons</span><button class="sw2" id="pSfx" aria-label="Sons"></button></div>
     </div>
     <div class="panel">
@@ -419,18 +426,39 @@ function fresh(key, list, n = 1, keep) {
 const one = (key, list, keep) => fresh(key, list, 1, keep)[0];
 
 /* ---------- Voix et sons ---------- */
-let lastSay = '', frVoice = null;
-function loadVoice() { try { frVoice = speechSynthesis.getVoices().find(v => v.lang && v.lang.toLowerCase().startsWith('fr')) || null; } catch (e) {} }
+let lastSay = '', frVoice = null, frVoices = [], sayTimer = null;
+/* Choisit automatiquement la voix française la plus naturelle de l’appareil */
+function voiceScore(v) {
+  const n = (v.name + ' ' + (v.voiceURI || '')).toLowerCase(), l = (v.lang || '').toLowerCase().replace('_', '-');
+  let s = l === 'fr-fr' ? 20 : l.startsWith('fr') ? 12 : 0;
+  if (/natural|neural|online/.test(n)) s += 30;
+  if (/premium|enhanced|amélior|ameliore/.test(n)) s += 25;
+  if (/google/.test(n)) s += 15;
+  if (/amélie|amelie|audrey|denise|vivienne|eloise|éloïse|marie|julie|céline|celine|hortense|aurélie/.test(n)) s += 6;
+  if (/compact|espeak|eloquence|grandma|grandpa|jacques|rocko|shelley|flo|sandy|reed|eddy|bahh|bells|boing|bubbles|cellos|wobble|zarvox|trinoids|whisper|organ|albert|bad news|good news|jester|superstar/.test(n)) s -= 40;
+  if (v.localService === false) s += 3;
+  return s;
+}
+function loadVoice() {
+  try {
+    frVoices = speechSynthesis.getVoices().filter(v => (v.lang || '').toLowerCase().startsWith('fr')).sort((a, b) => voiceScore(b) - voiceScore(a));
+    const want = typeof data !== 'undefined' && data && data.settings && data.settings.voiceName;
+    frVoice = frVoices.find(v => v.name === want) || frVoices[0] || null;
+    if (typeof data !== 'undefined' && data) fillVoiceList();
+  } catch (e) {}
+}
 try { loadVoice(); speechSynthesis.onvoiceschanged = loadVoice; } catch (e) {}
 function say(t, remember = true) {
   if (remember) lastSay = t;
   if (!data.settings.voice) return;
   try {
-    speechSynthesis.cancel();
+    speechSynthesis.cancel(); clearTimeout(sayTimer);
+    if (!frVoice) loadVoice();
     const u = new SpeechSynthesisUtterance(t);
-    u.lang = 'fr-FR'; u.rate = 0.9; u.pitch = 1.15;
+    u.lang = frVoice ? frVoice.lang : 'fr-FR';
+    u.rate = data.settings.rate || 0.95; u.pitch = 1.05; u.volume = 1;
     if (frVoice) u.voice = frVoice;
-    speechSynthesis.speak(u);
+    sayTimer = setTimeout(() => speechSynthesis.speak(u), 80);
   } catch (e) {}
 }
 function hush() { try { speechSynthesis.cancel(); } catch (e) {} }
@@ -1396,6 +1424,7 @@ $('gateIn').addEventListener('keydown', e => { if (e.key === 'Enter') $('gateOk'
 
 function openParent() {
   $('pName').value = data.name;
+  loadVoice(); $('pRate').value = String(data.settings.rate || 0.95);
   renderAvatars($('avParent'));
   $('pLimit').value = String(data.settings.limit);
   $('pVoice').classList.toggle('on', data.settings.voice);
@@ -1419,6 +1448,20 @@ $('pName').addEventListener('input', () => { data.name = $('pName').value.trim()
 $('pLimit').onchange = () => { data.settings.limit = parseInt($('pLimit').value, 10) || 0; save(); };
 $('pVoice').onclick = () => { data.settings.voice = !data.settings.voice; save(); $('pVoice').classList.toggle('on', data.settings.voice); };
 $('pSfx').onclick = () => { data.settings.sfx = !data.settings.sfx; save(); $('pSfx').classList.toggle('on', data.settings.sfx); };
+function fillVoiceList() {
+  const sel = $('pVoiceName'); if (!sel) return;
+  sel.innerHTML = '';
+  frVoices.forEach((v, i) => {
+    const o = document.createElement('option'); o.value = v.name;
+    o.textContent = v.name.replace(/Microsoft |Google /, '').replace(/\s*-\s*French.*$/i, '') + (i === 0 ? ' ⭐' : '');
+    sel.appendChild(o);
+  });
+  if (frVoice) sel.value = frVoice.name;
+  $('pVoiceNote').textContent = frVoices.length ? '⭐ = la voix la plus naturelle trouvée sur cet appareil (choisie automatiquement).' : 'Aucune voix française n’a été trouvée sur cet appareil.';
+}
+$('pVoiceName').onchange = () => { data.settings.voiceName = $('pVoiceName').value; save(); loadVoice(); say(`Coucou ${kidName()} ! On joue ensemble ?`, false); };
+$('pRate').onchange = () => { data.settings.rate = parseFloat($('pRate').value) || 0.95; save(); say('Voilà, je parle comme ça maintenant.', false); };
+$('pTest').onclick = () => say(`Coucou ${kidName()} ! Bravo, tu es super forte. On joue ensemble ?`, false);
 $('pReset').onclick = () => {
   if (!confirm('Effacer toutes les étoiles, autocollants, niveaux et le profil ?')) return;
   data = JSON.parse(JSON.stringify(DEFAULT)); save(); refreshStars(); startup();
@@ -1441,7 +1484,7 @@ function startup() {
   if (!data.name) { renderAvatars($('avSetup')); $('nameIn').value = ''; show('setup'); return; }
   goMenu();
 }
-load(); startup();
+load(); loadVoice(); startup();
 </script>
 </body>
 </html>

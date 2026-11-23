@@ -402,8 +402,8 @@ th{font-weight:600}
       <h3>Réglages</h3>
       <div class="row"><span>Consignes lues à voix haute</span><button class="sw2" id="pVoice" aria-label="Voix"></button></div>
       <div class="row"><span>Voix</span><select id="pVoiceName" style="max-width:62%"></select></div>
-      <div class="row"><span>Vitesse</span>
-        <select id="pRate"><option value="0.72">Très lente</option><option value="0.82">Lente (conseillée)</option><option value="0.92">Normale</option></select>
+      <div class="row"><span>Vitesse <b id="pRateLbl"></b></span>
+        <input type="range" id="pRate" min="0.4" max="1" step="0.05" aria-label="Vitesse de la voix" style="max-width:50%;padding:0;border:0;background:none;accent-color:#FF5FA2">
       </div>
       <button class="btn ghost small" id="pTest">🔊 Écouter la voix</button>
       <p class="note" id="pVoiceNote"></p>
@@ -447,7 +447,7 @@ const dayStr = (d = new Date()) => d.getFullYear() + '-' + (d.getMonth() + 1) + 
 const DEFAULT = { name: '', avatar: '🦉', stars: 0, stickers: [], stats: {}, daily: { date: '', streak: 0 },
   settings: { voice: true, sfx: true, limit: 0 }, time: { date: '', sec: 0 }, recent: {}, colorings: {}, colorDone: {} };
 let data;
-function migrateRate() { if (data.avatar === '🦄') data.avatar = '🦉'; if (data.settings.rate && data.settings.rate > 0.92) data.settings.rate = 0.82; }
+function migrateRate() { if (data.avatar === '🦄') data.avatar = '🦉'; if (!data.settings.rateV2) { data.settings.rate = Math.max(0.4, Math.round(((data.settings.rate || 0.82) - 0.17) * 100) / 100); data.settings.rateV2 = true; save(); } }
 function load() {
   let d = null;
   try { d = JSON.parse(localStorage.getItem('pm-data') || 'null'); } catch (e) {}
@@ -510,13 +510,17 @@ function say(t, remember = true) {
   try {
     speechSynthesis.cancel(); clearTimeout(sayTimer);
     if (!frVoice) loadVoice();
-    const u = new SpeechSynthesisUtterance(t);
-    u.lang = frVoice ? frVoice.lang : 'fr-FR';
-    u.rate = data.settings.rate || 0.82; u.pitch = 1.05; u.volume = 1;
-    if (frVoice) u.voice = frVoice;
-    u.onend = u.onerror = () => { speakEnd = Date.now(); };
+    const parts = (String(t).match(/[^.!?…]+[.!?…]*/g) || [String(t)]).map(x => x.trim()).filter(Boolean);
+    const us = parts.map(p => {
+      const u = new SpeechSynthesisUtterance(p);
+      u.lang = frVoice ? frVoice.lang : 'fr-FR';
+      u.rate = data.settings.rate || 0.65; u.pitch = 1.05; u.volume = 1;
+      if (frVoice) u.voice = frVoice;
+      u.onend = u.onerror = () => { speakEnd = Date.now(); };
+      return u;
+    });
     speakPending = true;
-    sayTimer = setTimeout(() => { speakPending = false; speechSynthesis.speak(u); }, 80);
+    sayTimer = setTimeout(() => { speakPending = false; us.forEach(u => speechSynthesis.speak(u)); }, 80);
   } catch (e) { speakPending = false; }
 }
 /* Attend que la voix ait fini de parler avant de continuer */
@@ -1775,8 +1779,8 @@ $('gateIn').addEventListener('keydown', e => { if (e.key === 'Enter') $('gateOk'
 
 function openParent() {
   $('pName').value = data.name;
-  loadVoice(); if (![0.72, 0.82, 0.92].includes(data.settings.rate)) data.settings.rate = 0.82;
-  $('pRate').value = String(data.settings.rate);
+  loadVoice(); if (!(data.settings.rate >= 0.4 && data.settings.rate <= 1)) data.settings.rate = 0.65;
+  $('pRate').value = String(data.settings.rate); $('pRateLbl').textContent = rateLabel(data.settings.rate);
   renderAvatars($('avParent'));
   $('pLimit').value = String(data.settings.limit);
   $('pVoice').classList.toggle('on', data.settings.voice);
@@ -1812,7 +1816,9 @@ function fillVoiceList() {
   $('pVoiceNote').textContent = frVoices.length ? '⭐ = la voix la plus naturelle trouvée sur cet appareil (choisie automatiquement).' : 'Aucune voix française n’a été trouvée sur cet appareil.';
 }
 $('pVoiceName').onchange = () => { data.settings.voiceName = $('pVoiceName').value; save(); loadVoice(); say(`Coucou ${kidName()} ! On joue ensemble ?`, false); };
-$('pRate').onchange = () => { data.settings.rate = parseFloat($('pRate').value) || 0.82; save(); say('Voilà, je parle comme ça maintenant.', false); };
+const rateLabel = r => r <= 0.5 ? '(très, très lente)' : r <= 0.65 ? '(très lente)' : r <= 0.8 ? '(lente)' : '(normale)';
+$('pRate').oninput = () => { $('pRateLbl').textContent = rateLabel(parseFloat($('pRate').value)); };
+$('pRate').onchange = () => { data.settings.rate = parseFloat($('pRate').value) || 0.65; save(); say('Voilà, je parle comme ça maintenant.', false); };
 $('pTest').onclick = () => say(`Coucou ${kidName()} ! Bravo, tu es super forte. On joue ensemble ?`, false);
 $('pReset').onclick = () => {
   if (!confirm('Effacer toutes les étoiles, autocollants, niveaux et le profil ?')) return;

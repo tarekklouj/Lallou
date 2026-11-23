@@ -215,14 +215,14 @@ th{font-weight:600}
 </div>
 <div class="wrap">
   <header>
-    <div class="logo"><span id="hAvatar">🦄</span>Petite Maline</div>
+    <div class="logo"><span id="hAvatar">🦉</span>Petite Maline</div>
     <div class="stars" aria-label="Étoiles gagnées">⭐ <b id="starCount">0</b></div>
   </header>
   <div class="rainbow" aria-hidden="true"></div>
 
   <!-- Accueil -->
   <section id="setup" class="hidden center">
-    <div class="big">🦄</div>
+    <div class="big">🦉</div>
     <h2>Bienvenue&nbsp;!</h2>
     <p class="sub">Comment tu t’appelles&nbsp;?</p>
     <input id="nameIn" maxlength="20" placeholder="Ton prénom" autocomplete="off">
@@ -389,10 +389,10 @@ const sample = (a, n) => shuffle(a).slice(0, n);
 const dayStr = (d = new Date()) => d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
 
 /* ---------- Données ---------- */
-const DEFAULT = { name: '', avatar: '🦄', stars: 0, stickers: [], stats: {}, daily: { date: '', streak: 0 },
+const DEFAULT = { name: '', avatar: '🦉', stars: 0, stickers: [], stats: {}, daily: { date: '', streak: 0 },
   settings: { voice: true, sfx: true, limit: 0 }, time: { date: '', sec: 0 }, recent: {}, colorings: {}, colorDone: {} };
 let data;
-function migrateRate() { if (data.settings.rate && data.settings.rate > 0.92) data.settings.rate = 0.82; }
+function migrateRate() { if (data.avatar === '🦄') data.avatar = '🦉'; if (data.settings.rate && data.settings.rate > 0.92) data.settings.rate = 0.82; }
 function load() {
   let d = null;
   try { d = JSON.parse(localStorage.getItem('pm-data') || 'null'); } catch (e) {}
@@ -512,7 +512,7 @@ const GAMES = {
 };
 const CATS = { 'Réfléchir': '🧠 Réfléchir', 'Observer': '👀 Observer', 'Compter': '🔢 Compter', 'Lire': '📖 Lire' };
 const STICKERS = ['🦄','🌈','🧁','🎀','👑','🦋','🌸','🐱','🐰','🐼','🦊','🐬','🍓','🍭','🎈','⭐','🌙','☀️','🌷','🐞','🐢','🦒','🐧','🍉','🍦','🎠','🎨','💎','🏰','🧚‍♀️'];
-const AVATARS = ['🦄','🐱','🐰','🦊','🐼','🦋','🧚‍♀️','👸','🐬','🐨'];
+const AVATARS = ['🦉','🐱','🐰','🦊','🐼','🦋','🧚‍♀️','👸','🐬','🐨'];
 
 function renderMenu() {
   $('hAvatar').textContent = data.avatar;

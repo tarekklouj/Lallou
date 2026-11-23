@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Petits Malins</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#FFE9A8; --ink:#2B2E7A; --card:#FFFFFF; --soft:#FFF6D6;
+  --pink:#FF6F91; --green:#2FB37F; --blue:#4C9BE8; --violet:#8A6FE8; --orange:#FF9F43;
+  --shadow:#E8C96A;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#1E2150; --ink:#FFF3CC; --card:#2D3170; --soft:#262A62; --shadow:#14163A;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#1E2150; --ink:#FFF3CC; --card:#2D3170; --soft:#262A62; --shadow:#14163A;
+  color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:"Fredoka","Nunito","Arial Rounded MT Bold",system-ui,sans-serif;
+  font-weight:500; -webkit-tap-highlight-color:transparent; user-select:none;
+}
+.wrap{max-width:640px;margin:0 auto;padding:16px 18px 40px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:1.6rem;letter-spacing:-.01em}
+.logo span{font-size:2.2rem}
+.stars{background:var(--card);border-radius:999px;padding:6px 14px;font-weight:700;font-size:1.25rem;box-shadow:0 4px 0 var(--shadow)}
+button{font-family:inherit;color:inherit;cursor:pointer;border:0}
+button:focus-visible{outline:4px solid var(--blue);outline-offset:3px}
+
+/* Menu */
+.hello{font-size:1.35rem;margin:18px 0 18px;line-height:1.35}
+.menu{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.tile{
+  background:var(--card);border-radius:28px;padding:18px 10px 16px;
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  box-shadow:0 6px 0 var(--c);border:3px solid var(--c);
+  transition:transform .1s;
+}
+.tile:active{transform:translateY(4px);box-shadow:0 2px 0 var(--c)}
+.tile .ic{font-size:3rem;line-height:1}
+.tile .nm{font-size:1.2rem;font-weight:600}
+.tile:last-child:nth-child(odd){grid-column:1/-1}
+
+/* Jeu */
+.bar{display:flex;align-items:center;gap:10px;margin:6px 0 14px}
+.round{width:52px;height:52px;border-radius:50%;background:var(--card);font-size:1.5rem;box-shadow:0 4px 0 var(--shadow);flex:none}
+.dots{display:flex;gap:8px;flex:1;justify-content:center}
+.dot{width:16px;height:16px;border-radius:50%;background:var(--card);border:2px solid var(--shadow)}
+.dot.on{background:var(--green);border-color:var(--green)}
+.prompt{font-size:1.3rem;text-align:center;margin:0 0 16px;min-height:1.6em;line-height:1.3}
+.stage{
+  background:var(--soft);border-radius:28px;padding:18px 12px;min-height:150px;
+  display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px;margin-bottom:18px;
+}
+.stage:empty{display:none}
+.cell{font-size:2.3rem;width:52px;height:60px;display:grid;place-items:center}
+.cell.q{border:3px dashed var(--ink);border-radius:16px;font-size:1.8rem;font-weight:700;opacity:.7}
+.count{font-size:2.4rem;width:56px;height:56px;display:grid;place-items:center}
+.shadow{font-size:7rem;filter:brightness(0);opacity:.85;line-height:1}
+:root[data-theme="dark"] .shadow{filter:brightness(0) invert(1)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .shadow{filter:brightness(0) invert(1)}}
+.opts{display:flex;flex-wrap:wrap;gap:14px;justify-content:center}
+.opt{
+  min-width:92px;height:92px;padding:0 10px;border-radius:26px;background:var(--card);
+  font-size:3rem;font-weight:700;box-shadow:0 6px 0 var(--shadow);
+  display:grid;place-items:center;transition:transform .1s;
+}
+.opt:active{transform:translateY(4px);box-shadow:0 2px 0 var(--shadow)}
+.opt.num{font-size:2.6rem}
+.opts.four{display:grid;grid-template-columns:1fr 1fr;max-width:260px;margin:0 auto}
+.opt.oui{background:var(--green);color:#fff;box-shadow:0 6px 0 #1E8A60}
+.opt.non{opacity:.35;animation:shake .4s}
+@keyframes shake{25%{transform:translateX(-8px)}50%{transform:translateX(8px)}75%{transform:translateX(-4px)}}
+
+/* Mémoire */
+.mem{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;max-width:420px;margin:0 auto}
+.card{
+  aspect-ratio:3/4;border-radius:20px;background:var(--violet);font-size:2.4rem;
+  box-shadow:0 5px 0 #5E47B8;display:grid;place-items:center;color:#fff;
+}
+.card.open{background:var(--card);color:inherit;box-shadow:0 5px 0 var(--shadow)}
+.card.done{background:var(--green);box-shadow:0 5px 0 #1E8A60}
+
+/* Bravo */
+.pop{position:fixed;inset:0;display:grid;place-items:center;pointer-events:none;z-index:20}
+.pop div{font-size:9rem;animation:pop .9s ease-out forwards}
+@keyframes pop{0%{transform:scale(.2) rotate(-30deg);opacity:0}40%{transform:scale(1.15) rotate(8deg);opacity:1}100%{transform:scale(1) rotate(0);opacity:0}}
+.end{text-align:center;padding-top:20px}
+.end .big{font-size:6rem}
+.end h2{font-size:2rem;margin:8px 0}
+.end p{font-size:1.3rem;margin:0 0 24px}
+.btn{
+  display:block;width:100%;max-width:320px;margin:0 auto 14px;padding:16px;border-radius:999px;
+  font-size:1.3rem;font-weight:700;background:var(--c,var(--blue));color:#fff;box-shadow:0 5px 0 rgba(0,0,0,.2);
+}
+.btn.ghost{background:var(--card);color:var(--ink);box-shadow:0 5px 0 var(--shadow)}
+.hidden{display:none}
+.parent{margin-top:28px;font-size:.95rem;opacity:.75;line-height:1.45;text-align:center}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo"><span>🦉</span>Petits Malins</div>
+    <div class="stars" aria-label="Étoiles gagnées">⭐ <b id="starCount">0</b></div>
+  </header>
+
+  <section id="menu">
+    <p class="hello">Coucou&nbsp;! Choisis un jeu pour faire travailler ta tête.</p>
+    <div class="menu" id="tiles"></div>
+    <p class="parent">Pour les parents&nbsp;: chaque consigne est lue à voix haute (touche 🔊 pour la réécouter). Une partie dure environ 3 minutes.</p>
+  </section>
+
+  <section id="game" class="hidden">
+    <div class="bar">
+      <button class="round" id="back" aria-label="Retour aux jeux">🏠</button>
+      <div class="dots" id="dots"></div>
+      <button class="round" id="speak" aria-label="Réécouter la consigne">🔊</button>
+    </div>
+    <p class="prompt" id="prompt"></p>
+    <div class="stage" id="stage"></div>
+    <div class="opts" id="opts"></div>
+  </section>
+
+  <section id="end" class="hidden end">
+    <div class="big">🏆</div>
+    <h2>Bravo&nbsp;!</h2>
+    <p id="endText"></p>
+    <button class="btn" id="again">Rejouer</button>
+    <button class="btn ghost" id="toMenu">Choisir un autre jeu</button>
+  </section>
+</div>
+<div class="pop" id="pop"></div>
+
+<script>
+const ROUNDS = 5;
+const $ = id => document.getElementById(id);
+const rand = n => Math.floor(Math.random() * n);
+const pick = a => a[rand(a.length)];
+const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = rand(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const sample = (a, n) => shuffle(a).slice(0, n);
+
+/* Étoiles */
+let stars = 0;
+try { stars = parseInt(localStorage.getItem('pm-stars') || '0', 10) || 0; } catch (e) {}
+function setStars(n) { stars = n; $('starCount').textContent = n; try { localStorage.setItem('pm-stars', String(n)); } catch (e) {} }
+setStars(stars);
+
+/* Voix */
+let lastSay = '';
+let frVoice = null;
+function loadVoice() {
+  try { frVoice = speechSynthesis.getVoices().find(v => v.lang && v.lang.toLowerCase().startsWith('fr')) || null; } catch (e) {}
+}
+try { loadVoice(); speechSynthesis.onvoiceschanged = loadVoice; } catch (e) {}
+function say(t, remember = true) {
+  if (remember) lastSay = t;
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(t);
+    u.lang = 'fr-FR'; u.rate = 0.9; u.pitch = 1.1;
+    if (frVoice) u.voice = frVoice;
+    speechSynthesis.speak(u);
+  } catch (e) {}
+}
+const BRAVO = ['Bravo !', 'Super !', 'Génial !', 'Tu es trop forte !', 'Excellent !', 'Bien joué !'];
+const ENCORE = ['Presque ! Essaie encore.', 'Oups, regarde bien et réessaie.', 'Pas tout à fait, essaie encore.'];
+
+/* Jeux */
+const GAMES = {
+  suite:  { name: 'Les suites',   icon: '🔁', color: 'var(--blue)',   round: roundSuite },
+  intrus: { name: 'L’intrus',     icon: '🕵️', color: 'var(--pink)',   round: roundIntrus },
+  compte: { name: 'Je compte',    icon: '🔢', color: 'var(--orange)', round: roundCompte },
+  ombre:  { name: 'Les ombres',   icon: '🌗', color: 'var(--green)',  round: roundOmbre },
+  memo:   { name: 'Mémoire',      icon: '🃏', color: 'var(--violet)', round: roundMemo }
+};
+
+const tiles = $('tiles');
+Object.entries(GAMES).forEach(([id, g]) => {
+  const b = document.createElement('button');
+  b.className = 'tile'; b.style.setProperty('--c', g.color);
+  b.innerHTML = `<span class="ic">${g.icon}</span><span class="nm">${g.name}</span>`;
+  b.onclick = () => startGame(id);
+  tiles.appendChild(b);
+});
+
+let state = null;
+function show(id) { ['menu', 'game', 'end'].forEach(s => $(s).classList.toggle('hidden', s !== id)); window.scrollTo(0, 0); }
+
+function startGame(id) {
+  state = { id, round: 0, earned: 0, busy: false };
+  show('game');
+  nextRound();
+}
+function nextRound() {
+  if (state.round >= ROUNDS) return endGame();
+  state.busy = false;
+  renderDots();
+  $('stage').innerHTML = ''; $('opts').innerHTML = ''; $('opts').className = 'opts';
+  GAMES[state.id].round();
+}
+function renderDots() {
+  const d = $('dots'); d.innerHTML = '';
+  const total = state.id === 'memo' ? 1 : ROUNDS;
+  const done = state.id === 'memo' ? (state.round >= ROUNDS ? 1 : 0) : state.round;
+  for (let i = 0; i < total; i++) { const s = document.createElement('span'); s.className = 'dot' + (i < done ? ' on' : ''); d.appendChild(s); }
+}
+function setPrompt(t) { $('prompt').textContent = t; say(t); }
+
+function win(earn = 1) {
+  state.busy = true;
+  state.earned += earn;
+  setStars(stars + earn);
+  state.round++;
+  renderDots();
+  const p = $('pop'); p.innerHTML = '<div>⭐</div>';
+  say(pick(BRAVO), false);
+  setTimeout(() => { p.innerHTML = ''; nextRound(); }, 1500);
+}
+function endGame() {
+  $('endText').textContent = `Tu as gagné ${state.earned} étoile${state.earned > 1 ? 's' : ''} !`;
+  show('end');
+  say(`Bravo ! Tu as gagné ${state.earned} étoiles !`, false);
+}
+
+/* Boutons de réponse */
+function options(items, correct, opts = {}) {
+  const box = $('opts');
+  if (items.length === 4) box.classList.add('four');
+  items.forEach(it => {
+    const b = document.createElement('button');
+    b.className = 'opt' + (opts.num ? ' num' : '');
+    b.textContent = it;
+    b.setAttribute('aria-label', String(it));
+    b.onclick = () => {
+      if (state.busy || b.classList.contains('non')) return;
+      if (it === correct) { b.classList.add('oui'); win(); }
+      else { b.classList.add('non'); say(pick(ENCORE), false); }
+    };
+    box.appendChild(b);
+  });
+}
+
+/* 1. Suites logiques */
+const SUITE_POOL = ['🔴', '🔵', '🟡', '🟢', '🟣', '⭐', '🌙', '❤️', '🍎', '🐟', '🌸', '🐞'];
+function roundSuite() {
+  const types = state.round < 2 ? ['AB', 'AB', 'AAB'] : ['AB', 'AAB', 'ABB', 'ABC'];
+  const type = pick(types);
+  const letters = [...new Set(type)];
+  const chosen = sample(SUITE_POOL, letters.length);
+  const map = {}; letters.forEach((l, i) => map[l] = chosen[i]);
+  const pat = [...type].map(l => map[l]);
+  const len = pat.length;
+  let shown = len * 2 + rand(len);
+  if (shown > 7) shown = 7;
+  const seq = Array.from({ length: shown }, (_, i) => pat[i % len]);
+  const answer = pat[shown % len];
+  const stage = $('stage');
+  seq.forEach(e => { const c = document.createElement('div'); c.className = 'cell'; c.textContent = e; stage.appendChild(c); });
+  const q = document.createElement('div'); q.className = 'cell q'; q.textContent = '?'; stage.appendChild(q);
+  const choices = new Set(chosen);
+  while (choices.size < 3) choices.add(pick(SUITE_POOL));
+  setPrompt('Regarde bien la suite. Qu’est-ce qui vient après ?');
+  const pool = [answer, ...shuffle([...choices].filter(c => c !== answer)).slice(0, 2)];
+  options(shuffle(pool), answer);
+}
+
+/* 2. L’intrus */
+const FAMILLES = {
+  'les fruits': ['🍎', '🍌', '🍇', '🍓', '🍐', '🍒', '🍑', '🍍', '🍉'],
+  'les animaux': ['🐶', '🐱', '🐰', '🐻', '🐼', '🦊', '🐸', '🐵', '🐷'],
+  'les véhicules': ['🚗', '🚌', '🚲', '🚀', '✈️', '🚂', '🚜', '🚁', '⛵'],
+  'les vêtements': ['👕', '👖', '👗', '🧦', '🧢', '👟', '🧤', '🧣'],
+  'la météo': ['☀️', '🌧️', '❄️', '⛈️', '🌈', '☁️', '🌪️']
+};
+function roundIntrus() {
+  const keys = Object.keys(FAMILLES);
+  const [k1, k2] = sample(keys, 2);
+  const trio = sample(FAMILLES[k1], 3);
+  const odd = pick(FAMILLES[k2]);
+  setPrompt('Trouve celui qui n’est pas de la même famille que les autres.');
+  options(shuffle([...trio, odd]), odd);
+}
+
+/* 3. Compter */
+const COMPTE_POOL = ['🐞', '🍓', '⭐', '🐟', '🎈', '🌼', '🐥', '🍪'];
+function roundCompte() {
+  const max = state.round < 2 ? 6 : 10;
+  const n = 1 + rand(max);
+  const e = pick(COMPTE_POOL);
+  const stage = $('stage');
+  for (let i = 0; i < n; i++) { const c = document.createElement('div'); c.className = 'count'; c.textContent = e; stage.appendChild(c); }
+  const set = new Set([n]);
+  while (set.size < 3) { const d = n + (rand(5) - 2); if (d >= 1 && d <= 10) set.add(d); }
+  setPrompt('Compte bien avec ton doigt. Combien y en a-t-il ?');
+  options(shuffle([...set]), n, { num: true });
+}
+
+/* 4. Les ombres */
+const OMBRE_POOL = ['🐘', '🦒', '🐢', '🦋', '🐌', '🦀', '🐇', '🐓', '🌵', '🎸', '✂️', '☂️', '🚲', '🦕', '🐙', '🔑', '🍄', '🐳'];
+function roundOmbre() {
+  const three = sample(OMBRE_POOL, 3);
+  const target = three[0];
+  const s = document.createElement('div'); s.className = 'shadow'; s.textContent = target;
+  s.setAttribute('aria-label', 'Une ombre');
+  $('stage').appendChild(s);
+  setPrompt('À qui est cette ombre ?');
+  options(shuffle(three), target);
+}
+
+/* 5. Mémoire */
+const MEMO_POOL = ['🐶', '🐱', '🦁', '🐸', '🐵', '🐧', '🦄', '🐙', '🍓', '🌈', '🚀', '⚽'];
+function roundMemo() {
+  const pairs = sample(MEMO_POOL, 4);
+  const deck = shuffle([...pairs, ...pairs]);
+  const grid = document.createElement('div'); grid.className = 'mem';
+  $('opts').appendChild(grid);
+  let open = [], found = 0, lock = false;
+  deck.forEach(e => {
+    const c = document.createElement('button'); c.className = 'card'; c.textContent = '?'; c.setAttribute('aria-label', 'Carte cachée');
+    c.onclick = () => {
+      if (lock || c.classList.contains('open') || c.classList.contains('done')) return;
+      c.classList.add('open'); c.textContent = e;
+      open.push({ c, e });
+      if (open.length === 2) {
+        lock = true;
+        const [a, b] = open;
+        if (a.e === b.e) {
+          setTimeout(() => {
+            a.c.classList.add('done'); b.c.classList.add('done');
+            open = []; lock = false; found++;
+            if (found === 4) { state.round = ROUNDS - 1; win(3); }
+            else say('Une paire !', false);
+          }, 400);
+        } else {
+          setTimeout(() => {
+            [a, b].forEach(x => { x.c.classList.remove('open'); x.c.textContent = '?'; });
+            open = []; lock = false;
+          }, 1000);
+        }
+      }
+    };
+    grid.appendChild(c);
+  });
+  setPrompt('Retourne deux cartes et trouve les paires pareilles.');
+}
+
+/* Navigation */
+$('back').onclick = () => { try { speechSynthesis.cancel(); } catch (e) {} show('menu'); };
+$('speak').onclick = () => say(lastSay);
+$('again').onclick = () => startGame(state.id);
+$('toMenu').onclick = () => show('menu');
+</script>
+</body>
+</html>

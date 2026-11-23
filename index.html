@@ -114,6 +114,31 @@ h3{font-size:1.2rem;margin:22px 0 10px;font-weight:600}
 .opt.non{opacity:.35;animation:shake .4s}
 @keyframes shake{25%{transform:translateX(-8px)}50%{transform:translateX(8px)}75%{transform:translateX(-4px)}}
 
+/* Variantes */
+.daily.mix{background:linear-gradient(120deg,#FF9F43,#FF5FA2);box-shadow:0 6px 0 #C93D7C}
+.opts.find{gap:10px}
+.opt.sm{min-width:0;width:64px;height:64px;font-size:2rem;border-radius:18px;padding:0}
+.opt.sm svg{width:44px;height:44px}
+.opt.sel{outline:4px solid var(--pink);outline-offset:2px;background:var(--soft)}
+.okbtn{flex-basis:100%;margin-top:10px}
+.big1{font-size:5rem;line-height:1.1}
+.mini{width:46px;height:46px}.mini svg{width:100%;height:100%}
+.sh{filter:brightness(0);opacity:.85}
+:root[data-theme="dark"] .sh{filter:brightness(0) invert(1)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .sh{filter:brightness(0) invert(1)}}
+.blob{width:62px;height:62px;border-radius:50%;display:block;box-shadow:inset 0 -6px 0 rgba(0,0,0,.12)}
+.opts.col{flex-direction:column;align-items:stretch}
+.opt.bar{width:100%;height:62px;justify-items:start;padding:0 16px}
+.crayon{display:block;height:26px;clip-path:polygon(0 0,86% 0,100% 50%,86% 100%,0 100%);border-radius:6px 0 0 6px}
+.gone{opacity:.2;transform:translateY(-14px) scale(.8)}
+.flash{background:var(--gold)!important;transform:scale(1.12)}
+.stack{font-size:1.25rem;display:flex;flex-wrap:wrap;width:66px;justify-content:center;align-content:center;background:var(--card);border-radius:14px;padding:4px;min-height:58px;line-height:1.2}
+.stack.wide{width:auto;max-width:260px;font-size:2rem;padding:10px}
+.num-cell{font-size:2.3rem;font-weight:700;width:58px;height:58px;display:grid;place-items:center;background:var(--card);border-radius:16px}
+.opt.house{width:calc(50% - 7px);height:auto;min-height:130px;font-size:1.9rem;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:10px}
+.house .roof{font-size:2.6rem}
+.lt{font-size:2rem;font-weight:700}
+
 /* Mémoire */
 .mem{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;max-width:420px;margin:0 auto;width:100%}
 .card{
@@ -210,6 +235,7 @@ th{font-weight:600}
   <section id="menu" class="hidden">
     <p class="hello" id="hello"></p>
     <button class="daily" id="daily"></button>
+    <button class="daily mix" id="mix"><span class="ic">🎁</span><span><b>Mélange surprise</b><small>6 jeux différents à la suite</small></span></button>
     <div id="cats"></div>
     <h3>🎨 Créer</h3>
     <div class="menu">
@@ -445,7 +471,7 @@ document.querySelectorAll('[data-home]').forEach(b => b.onclick = goMenu);
 const GAMES = {
   suite:    { name: 'Les suites',        icon: '🔁', cat: 'Réfléchir', color: 'var(--blue)',   round: roundSuite },
   intrus:   { name: 'L’intrus',          icon: '🕵️', cat: 'Réfléchir', color: 'var(--pink)',   round: roundIntrus },
-  memo:     { name: 'Mémoire',           icon: '🃏', cat: 'Réfléchir', color: 'var(--violet)', round: roundMemo, solo: true },
+  memo:     { name: 'Mémoire',           icon: '🃏', cat: 'Réfléchir', color: 'var(--violet)', round: roundMemo, rounds: 3 },
   ombre:    { name: 'Les ombres',        icon: '🌗', cat: 'Observer',  color: 'var(--green)',  round: roundOmbre },
   formes:   { name: 'Formes et couleurs',icon: '🔷', cat: 'Observer',  color: 'var(--blue)',   round: roundFormes },
   taille:   { name: 'Petit ou grand',    icon: '📏', cat: 'Observer',  color: 'var(--orange)', round: roundTaille },
@@ -453,7 +479,7 @@ const GAMES = {
   plus:     { name: 'Le plus, le moins', icon: '⚖️', cat: 'Compter',   color: 'var(--pink)',   round: roundPlus },
   addition: { name: 'Additions',         icon: '➕', cat: 'Compter',   color: 'var(--violet)', round: roundAddition },
   lettres:  { name: 'Les lettres',       icon: '🔤', cat: 'Lire',      color: 'var(--green)',  round: roundLettres },
-  sons:     { name: 'Les syllabes',      icon: '👏', cat: 'Lire',      color: 'var(--pink)',   round: roundSyllabes }
+  sons:     { name: 'Sons et rimes',      icon: '👏', cat: 'Lire',      color: 'var(--pink)',   round: roundSyllabes }
 };
 const CATS = { 'Réfléchir': '🧠 Réfléchir', 'Observer': '👀 Observer', 'Compter': '🔢 Compter', 'Lire': '📖 Lire' };
 const STICKERS = ['🦄','🌈','🧁','🎀','👑','🦋','🌸','🐱','🐰','🐼','🦊','🐬','🍓','🍭','🎈','⭐','🌙','☀️','🌷','🐞','🐢','🦒','🐧','🍉','🍦','🎠','🎨','💎','🏰','🧚‍♀️'];
@@ -494,20 +520,24 @@ const level = () => stat(curGame()).level;
 
 function startGame(id) {
   if (timeUp()) return showPause();
-  state = { mode: 'game', id, round: 0, total: GAMES[id].solo ? 1 : 5, earned: 0, errors: 0, busy: false };
+  state = { mode: 'game', id, round: 0, total: GAMES[id].rounds || 5, earned: 0, errors: 0, busy: false, token: 0 };
   show('game'); nextRound();
 }
 function startDaily() {
   if (timeUp()) return showPause();
-  const pool = Object.keys(GAMES).filter(g => !GAMES[g].solo);
-  state = { mode: 'daily', seq: sample(pool, 5), round: 0, total: 5, earned: 0, errors: 0, busy: false };
+  state = { mode: 'daily', seq: fresh('dailyG', Object.keys(GAMES), 5), round: 0, total: 5, earned: 0, errors: 0, busy: false, token: 0 };
+  show('game'); nextRound();
+}
+function startMix() {
+  if (timeUp()) return showPause();
+  state = { mode: 'mix', seq: fresh('mixG', Object.keys(GAMES), 6), round: 0, total: 6, earned: 0, errors: 0, busy: false, token: 0 };
   show('game'); nextRound();
 }
 function nextRound() {
   if (cur !== 'game') return;
   if (state.round >= state.total) return endGame();
   if (timeUp()) return showPause();
-  state.busy = false;
+  state.busy = false; state.token++;
   renderDots();
   $('stage').innerHTML = ''; $('opts').innerHTML = ''; $('opts').className = 'opts';
   GAMES[curGame()].round(level());
@@ -539,7 +569,7 @@ function endGame() {
     const s = stat(state.id); s.played++;
     if (state.errors <= 1 && s.level < 3) { s.level++; extra = `<br>Tu passes au niveau ${s.level} ! 🚀`; }
     else if (state.errors >= 6 && s.level > 1) { s.level--; }
-  } else {
+  } else if (state.mode === 'daily') {
     const y = new Date(); y.setDate(y.getDate() - 1);
     data.daily.streak = data.daily.date === dayStr(y) ? data.daily.streak + 1 : 1;
     data.daily.date = dayStr();
@@ -555,11 +585,12 @@ function endGame() {
   $('endText').innerHTML = `Tu as gagné ${state.earned} étoile${state.earned > 1 ? 's' : ''} !${extra}`;
   $('endGift').innerHTML = gift;
   $('again').classList.toggle('hidden', state.mode === 'daily');
+  if (state.mode === 'mix') $('again').classList.remove('hidden');
   show('end');
   sOk(); say(`Bravo ${data.name} ! Tu as gagné ${state.earned} étoiles et un nouvel autocollant !`, false);
 }
 $('speak').onclick = () => say(lastSay);
-$('again').onclick = () => startGame(state.id);
+$('again').onclick = () => state.mode === 'mix' ? startMix() : startGame(state.id);
 
 /* Boutons de réponse génériques : items = [{html, ok, aria, msg, cls}] */
 function choices(items, four = false) {
@@ -581,38 +612,87 @@ function choices(items, four = false) {
 const emo = (list, ans, msg) => list.map(e => ({ html: e, ok: e === ans, msg }));
 function addCells(arr, cls) { const s = $('stage'); arr.forEach(e => { const c = document.createElement('div'); c.className = cls; c.textContent = e; s.appendChild(c); }); }
 
-/* ---------- Consignes variées ---------- */
-const P = {
-  suite: ['Regarde bien la suite. Qu’est-ce qui vient après ?', 'Qui doit prendre la place du point d’interrogation ?', 'Continue la suite ! Lequel vient ensuite ?', 'Observe bien. Lequel manque à la fin ?'],
-  intrus: ['Trouve celui qui n’est pas de la même famille que les autres.', 'Un petit coquin s’est caché ! Lequel n’est pas comme les autres ?', 'Lequel n’a rien à faire ici ?', 'Cherche l’intrus !'],
-  memo: ['Retourne deux cartes et trouve les paires pareilles.', 'Trouve les cartes jumelles !', 'Cherche les cartes qui vont ensemble !'],
-  ombre: ['À qui est cette ombre ?', 'Devine qui se cache dans cette ombre !', 'Cette ombre, c’est qui ?', 'Retrouve le propriétaire de cette ombre !'],
-  taille: ['Touche du plus petit au plus grand.', 'Range-les ! Commence par le plus petit.', 'Du tout petit au très grand, à toi de ranger !'],
-  compte: ['Compte bien avec ton doigt. Combien y en a-t-il ?', 'Combien en vois-tu ?', 'Compte-les un par un. Combien ?', 'Combien sont-ils ?']
-};
-const ask = (key, list) => setPrompt(one('p-' + key, list, Math.min(2, list.length - 1)));
+/* ---------- Variété : chaque jeu a plusieurs façons de jouer, qui alternent ---------- */
 const variant = (key, n) => one('v-' + key, Array.from({ length: n }, (_, i) => i), 1);
+const say3 = (key, arr) => arr[variant(key, arr.length)];
+function runVariant(g, list, L) { const i = one('var-' + g, list.map((_, k) => k), list.length - 1); list[i](L); }
+function shake(b) { b.classList.remove('non'); void b.offsetWidth; b.classList.add('non'); setTimeout(() => b.classList.remove('non'), 450); }
+function findAll(items, msg) {
+  const box = $('opts'); box.classList.add('find');
+  let left = items.filter(i => i.ok).length;
+  items.forEach(it => {
+    const b = document.createElement('button'); b.className = 'opt sm'; b.innerHTML = it.html; b.setAttribute('aria-label', it.aria || 'image');
+    b.onclick = () => {
+      if (state.busy || b.classList.contains('oui')) return;
+      if (it.ok) { b.classList.add('oui'); sTap(); if (--left === 0) win(msg); }
+      else { shake(b); lose(); }
+    };
+    box.appendChild(b);
+  });
+}
+function numCells(arr) { const s = $('stage'); arr.forEach(v => { const d = document.createElement('div'); d.className = 'num-cell'; d.textContent = v; s.appendChild(d); }); }
+const kidName = () => (data.name && data.name !== 'ma championne') ? data.name : 'Lili';
 
-/* 1. Suites logiques */
+/* ===== 1. Les suites ===== */
 const SUITE_POOL = ['🌸', '💖', '⭐', '🦋', '🌈', '🍓', '🦄', '🌙', '🎀', '🐞', '🌷', '🧁', '🍭', '🐠', '🍀', '🎈'];
-function roundSuite(L) {
+function makePattern(L) {
   const types = [['AB', 'AAB', 'ABB'], ['AB', 'AAB', 'ABB', 'ABC', 'AABB'], ['ABC', 'AABB', 'ABB', 'ABAC', 'ABCC', 'AAB']][L - 1];
   const type = one('suiteT' + L, types, 2);
   const letters = [...new Set(type)];
   const chosen = fresh('suiteE', SUITE_POOL, letters.length, 8);
   const map = {}; letters.forEach((l, i) => map[l] = chosen[i]);
-  const pat = [...type].map(l => map[l]), len = pat.length;
-  const shown = Math.min(len * 2 + rand(len), 7);
-  addCells(Array.from({ length: shown }, (_, i) => pat[i % len]), 'cell');
-  addCells(['?'], 'cell q');
-  const answer = pat[shown % len];
-  const others = shuffle([...new Set(chosen.filter(c => c !== answer))]);
-  while (others.length < 2) { const x = pick(SUITE_POOL); if (x !== answer && !others.includes(x)) others.push(x); }
-  ask('suite', P.suite);
-  choices(emo(shuffle([answer, ...others.slice(0, 2)]), answer));
+  return { pat: [...type].map(l => map[l]), chosen };
 }
+function distractors(answer, chosen, k = 2) {
+  const o = shuffle([...new Set(chosen.filter(c => c !== answer))]);
+  while (o.length < k) { const x = pick(SUITE_POOL); if (x !== answer && !o.includes(x)) o.push(x); }
+  return o.slice(0, k);
+}
+function vSuiteApres(L) {
+  const { pat, chosen } = makePattern(L), len = pat.length;
+  const shown = Math.min(len * 2 + rand(len), 7);
+  addCells(Array.from({ length: shown }, (_, i) => pat[i % len]), 'cell'); addCells(['?'], 'cell q');
+  const ans = pat[shown % len];
+  setPrompt(say3('suiteA', ['Qu’est-ce qui vient après ?', 'Continue la suite ! Lequel vient ensuite ?', 'Observe bien. Lequel va à la fin ?']));
+  choices(emo(shuffle([ans, ...distractors(ans, chosen)]), ans));
+}
+function vSuiteTrou(L) {
+  const { pat, chosen } = makePattern(L), len = pat.length;
+  const total = Math.min(len * 2 + 1 + rand(2), 8);
+  const hole = len + rand(total - len - 1);
+  const seq = Array.from({ length: total }, (_, i) => pat[i % len]);
+  const s = $('stage');
+  seq.forEach((e, i) => { const c = document.createElement('div'); c.className = i === hole ? 'cell q' : 'cell'; c.textContent = i === hole ? '?' : e; s.appendChild(c); });
+  setPrompt(say3('suiteT', ['Oh non, il manque quelqu’un au milieu ! Lequel ?', 'Un trou dans la suite ! Qui va dedans ?', 'Qui s’est caché à la place du point d’interrogation ?']));
+  choices(emo(shuffle([seq[hole], ...distractors(seq[hole], chosen)]), seq[hole]));
+}
+function vSuiteGrow(L) {
+  const e = one('growE', SUITE_POOL);
+  const step = L === 3 ? 2 : 1, start = L === 1 ? 1 : 1 + rand(2);
+  const vals = [start, start + step, start + 2 * step], ans = start + 3 * step;
+  const s = $('stage');
+  vals.forEach(v => { const d = document.createElement('div'); d.className = 'stack'; d.textContent = e.repeat(v); s.appendChild(d); });
+  addCells(['?'], 'cell q');
+  setPrompt(say3('grow', ['Ça grandit à chaque fois ! Qu’est-ce qui vient après ?', 'Regarde, il y en a de plus en plus. Et ensuite ?']));
+  const opts = shuffle([ans, ans - step, ans + 1].filter((v, i, a) => v > 0 && a.indexOf(v) === i));
+  choices(opts.map(v => ({ html: e.repeat(v), cls: 'grp', aria: v + ' objets', ok: v === ans, msg: `Bravo ! Maintenant il y en a ${ans} !` })));
+}
+function vSuiteVF(L) {
+  const { pat, chosen } = makePattern(L), len = pat.length;
+  const total = Math.min(len * 2 + 2, 8);
+  const seq = Array.from({ length: total }, (_, i) => pat[i % len]);
+  const juste = rand(2) === 0;
+  if (!juste) { const i = len + rand(total - len); seq[i] = pick(SUITE_POOL.filter(x => x !== seq[i])); }
+  addCells(seq, 'cell');
+  setPrompt('Cette suite est-elle bien faite ? Pouce en l’air si oui, pouce en bas s’il y a une erreur.');
+  choices([
+    { html: '👍', aria: 'Oui, elle est juste', ok: juste, msg: 'Bravo ! La suite est parfaite !' },
+    { html: '👎', aria: 'Non, il y a une erreur', ok: !juste, msg: 'Bien vu ! Il y avait une erreur !' }
+  ]);
+}
+function roundSuite(L) { runVariant('suite', [vSuiteApres, vSuiteTrou, vSuiteGrow, vSuiteVF], L); }
 
-/* 2. L’intrus */
+/* ===== 2. L’intrus ===== */
 const FAMILLES = {
   fruits: ['🍎', '🍌', '🍇', '🍓', '🍐', '🍒', '🍑', '🍍', '🍉', '🥝', '🍋'],
   animaux: ['🐶', '🐱', '🐰', '🐻', '🐼', '🦊', '🐸', '🐵', '🐷', '🐮', '🐯'],
@@ -624,199 +704,386 @@ const FAMILLES = {
   legumes: ['🥕', '🥦', '🌽', '🍅', '🥔', '🍆'],
   sport: ['⚽', '🏀', '🎾', '🏐', '🏈']
 };
-function roundIntrus(L) {
+function vIntrus(L) {
   const keys = L === 1 ? ['fruits', 'animaux', 'vehicules', 'vetements', 'sport'] : Object.keys(FAMILLES);
-  const k1 = one('intrusF' + L, keys);
-  const k2 = pick(keys.filter(k => k !== k1));
-  const group = sample(FAMILLES[k1], L === 3 ? 4 : 3);
-  const odd = one('intrusO', FAMILLES[k2]);
-  ask('intrus', P.intrus);
+  const k1 = one('intrusF' + L, keys), k2 = pick(keys.filter(k => k !== k1));
+  const group = sample(FAMILLES[k1], L === 3 ? 4 : 3), odd = one('intrusO', FAMILLES[k2]);
+  setPrompt(say3('intrus', ['Trouve celui qui n’est pas de la même famille.', 'Un petit coquin s’est caché ! Lequel n’est pas comme les autres ?', 'Lequel n’a rien à faire ici ?']));
   choices(emo(shuffle([...group, odd]), odd), true);
 }
+const ASSOC = [['🐝', '🍯'], ['🐶', '🦴'], ['🔑', '🔒'], ['🐰', '🥕'], ['🌧️', '☂️'], ['🐄', '🥛'], ['🐔', '🥚'], ['🧦', '👟'], ['⚽', '🥅'], ['🐵', '🍌'], ['❄️', '⛄'], ['✏️', '📝'], ['🐟', '🎣'], ['🎂', '🕯️'], ['🌙', '🛏️'], ['🎨', '🖌️']];
+function vAssoc(L) {
+  const p = one('assoc', ASSOC);
+  const others = sample(ASSOC.filter(x => x !== p).map(x => x[1]), L === 3 ? 3 : 2);
+  addCells([p[0]], 'big1');
+  setPrompt(say3('assoc', ['Qu’est-ce qui va avec ?', 'Trouve son meilleur copain !', 'Avec quoi ça va ensemble ?']));
+  choices(emo(shuffle([p[1], ...others]), p[1], 'Bravo ! Ils vont bien ensemble !'), true);
+}
+function vMaisons(L) {
+  const keys = Object.keys(FAMILLES).filter(k => FAMILLES[k].length >= 7);
+  const [k1, k2] = sample(keys, 2), nItems = [4, 5, 6][L - 1];
+  const ex = [sample(FAMILLES[k1], 2), sample(FAMILLES[k2], 2)];
+  const queue = shuffle([
+    ...sample(FAMILLES[k1].filter(x => !ex[0].includes(x)), Math.ceil(nItems / 2)).map(e => [e, 0]),
+    ...sample(FAMILLES[k2].filter(x => !ex[1].includes(x)), Math.floor(nItems / 2)).map(e => [e, 1])
+  ]);
+  let k = 0; const st = $('stage');
+  const showItem = () => { st.innerHTML = `<div class="big1">${queue[k][0]}</div>`; };
+  showItem();
+  setPrompt('Range chaque image dans la bonne maison !');
+  ex.forEach((e, h) => {
+    const b = document.createElement('button'); b.className = 'opt house';
+    b.innerHTML = `<span class="roof">🏠</span><span>${e.join(' ')}</span>`; b.setAttribute('aria-label', 'Maison ' + (h + 1));
+    b.onclick = () => {
+      if (state.busy) return;
+      if (queue[k][1] === h) { sTap(); k++; if (k === queue.length) win('Bravo, tout le monde est bien rangé !'); else showItem(); }
+      else { shake(b); lose(); }
+    };
+    $('opts').appendChild(b);
+  });
+}
+function roundIntrus(L) { runVariant('intrus', [vIntrus, vAssoc, vMaisons], L); }
 
-/* 3. Mémoire */
+/* ===== 3. Mémoire ===== */
 const MEMO_POOL = ['🦄', '🐱', '🐰', '🦋', '🐼', '🧁', '🌈', '🍓', '👑', '🎀', '🌸', '🐬', '🍭', '🐞', '🦊', '🌻', '🐧', '🍩'];
-function roundMemo(L) {
-  const n = [3, 4, 6][L - 1];
+function vPaires(L) {
+  const n = [3, 4, 5][L - 1];
   const pairs = fresh('memo', MEMO_POOL, n, 10);
   const deck = shuffle([...pairs, ...pairs]);
-  const grid = document.createElement('div'); grid.className = 'mem';
-  $('opts').appendChild(grid);
+  const grid = document.createElement('div'); grid.className = 'mem'; $('opts').appendChild(grid);
   let open = [], found = 0, lock = false, misses = 0;
   deck.forEach(e => {
     const c = document.createElement('button'); c.className = 'card'; c.textContent = '✨'; c.setAttribute('aria-label', 'Carte cachée');
     c.onclick = () => {
       if (lock || state.busy || c.classList.contains('open') || c.classList.contains('done')) return;
-      sTap(); c.classList.add('open'); c.textContent = e;
-      open.push({ c, e });
+      sTap(); c.classList.add('open'); c.textContent = e; open.push({ c, e });
       if (open.length < 2) return;
-      lock = true;
-      const [a, b] = open;
+      lock = true; const [a, b] = open;
       if (a.e === b.e) {
         setTimeout(() => {
-          a.c.classList.add('done'); b.c.classList.add('done');
-          open = []; lock = false; found++;
-          if (found === n) { state.errors = Math.max(0, misses - n); win('Bravo ! Tu as trouvé toutes les paires !', 3); }
+          a.c.classList.add('done'); b.c.classList.add('done'); open = []; lock = false; found++;
+          if (found === n) { state.errors += Math.max(0, misses - n); win('Bravo ! Toutes les paires !', 2); }
           else { tone([880, 1175], 0.08); say(one('memoOk', ['Une paire !', 'Bien trouvé !', 'Et une de plus !'], 1), false); }
         }, 400);
-      } else {
-        misses++;
-        setTimeout(() => { [a, b].forEach(x => { x.c.classList.remove('open'); x.c.textContent = '✨'; }); open = []; lock = false; }, 1000);
-      }
+      } else { misses++; setTimeout(() => { [a, b].forEach(x => { x.c.classList.remove('open'); x.c.textContent = '✨'; }); open = []; lock = false; }, 1000); }
     };
     grid.appendChild(c);
   });
-  ask('memo', P.memo);
+  setPrompt(say3('paires', ['Retourne deux cartes et trouve les paires pareilles.', 'Trouve les cartes jumelles !']));
 }
+function vDisparu(L) {
+  const n = [3, 4, 5][L - 1], tk = state.token;
+  const items = fresh('dispE', MEMO_POOL, n, 12), missing = pick(items);
+  addCells(items, 'count');
+  setPrompt('Regarde bien et retiens tout ce que tu vois !');
+  setTimeout(() => {
+    if (tk !== state.token) return;
+    const st = $('stage'); st.innerHTML = '<div class="big1">🙈</div>';
+    setTimeout(() => {
+      if (tk !== state.token) return;
+      st.innerHTML = ''; addCells(shuffle(items.filter(x => x !== missing)), 'count');
+      setPrompt('Quelqu’un a disparu ! Qui ?');
+      choices(emo(shuffle([missing, ...sample(MEMO_POOL.filter(x => !items.includes(x)), 2)]), missing, 'Bravo, quelle mémoire !'));
+    }, 1000);
+  }, 3000 + n * 800);
+}
+function vSimon(L) {
+  const items = fresh('simonE', MEMO_POOL, 4, 8), len = L + 1, tk = state.token;
+  const seq = []; while (seq.length < len) { const k = rand(4); if (k !== seq[seq.length - 1]) seq.push(k); }
+  const box = $('opts'); box.classList.add('four');
+  const btns = items.map(e => { const b = document.createElement('button'); b.className = 'opt'; b.textContent = e; box.appendChild(b); return b; });
+  let pos = 0, playing = true;
+  const play = delay => {
+    playing = true; pos = 0;
+    seq.forEach((k, j) => setTimeout(() => {
+      if (tk !== state.token) return;
+      btns[k].classList.add('flash'); tone([520 + k * 130], 0.3);
+      setTimeout(() => btns[k].classList.remove('flash'), 500);
+      if (j === seq.length - 1) setTimeout(() => { playing = false; }, 550);
+    }, delay + j * 850));
+  };
+  btns.forEach((b, i) => b.onclick = () => {
+    if (playing || state.busy) return;
+    tone([520 + i * 130], 0.15); b.classList.add('flash'); setTimeout(() => b.classList.remove('flash'), 250);
+    if (i === seq[pos]) { pos++; if (pos === seq.length) win('Bravo, tu as tout retenu !'); }
+    else { lose(); play(1600); }
+  });
+  setPrompt(`Regarde bien les ${len} images qui s’allument, puis touche-les dans le même ordre !`);
+  play(3200);
+}
+function roundMemo(L) { runVariant('memo', [vPaires, vDisparu, vSimon], L); }
 
-/* 4. Les ombres */
+/* ===== 4. Les ombres ===== */
 const OMBRE_POOL = ['🐘', '🦒', '🐢', '🦋', '🐌', '🦀', '🐇', '🐓', '🌵', '🎸', '✂️', '☂️', '🚲', '🦕', '🐙', '🔑', '🍄', '🐳', '🦄', '🎠', '🦩', '🐿️', '🦔', '🏰', '🚁', '🍐'];
-function roundOmbre(L) {
-  const target = one('ombre', OMBRE_POOL);
-  const list = [target, ...sample(OMBRE_POOL.filter(x => x !== target), L === 3 ? 3 : 2)];
-  addCells([target], 'shadow');
-  ask('ombre', P.ombre);
-  choices(emo(shuffle(list), target), true);
+function vOmbre(L) {
+  const t = one('ombre', OMBRE_POOL), list = [t, ...sample(OMBRE_POOL.filter(x => x !== t), L === 3 ? 3 : 2)];
+  addCells([t], 'shadow');
+  setPrompt(say3('ombre', ['À qui est cette ombre ?', 'Devine qui se cache dans cette ombre !', 'Cette ombre, c’est qui ?']));
+  choices(emo(shuffle(list), t), true);
 }
+function vOmbreInv(L) {
+  const t = one('ombre', OMBRE_POOL), list = [t, ...sample(OMBRE_POOL.filter(x => x !== t), L === 3 ? 3 : 2)];
+  addCells([t], 'big1');
+  setPrompt(say3('ombreI', ['Trouve sa bonne ombre !', 'Quelle ombre est la sienne ?']));
+  choices(shuffle(list).map(e => ({ html: `<span class="sh">${e}</span>`, aria: 'Ombre', ok: e === t })), true);
+}
+const DIFF_EASY = [['🍎', '🍐'], ['🐱', '🐶'], ['⭐', '🌙'], ['🌸', '🌻'], ['🐟', '🐢'], ['🎈', '🍭'], ['🐰', '🐻'], ['🍓', '🍒']];
+const DIFF_HARD = [['🍎', '🍏'], ['⭐', '🌟'], ['🌸', '🌺'], ['🐟', '🐠'], ['😀', '😃'], ['🐱', '😺'], ['❤️', '🧡'], ['🐻', '🐨'], ['🌷', '🌹'], ['🐶', '🐕']];
+function vDiff(L) {
+  const p = one('diff' + (L === 1 ? 1 : 2), L === 1 ? DIFF_EASY : DIFF_HARD);
+  const [a, b] = rand(2) ? p : [p[1], p[0]];
+  const n = [6, 9, 12][L - 1], at = rand(n);
+  setPrompt(say3('diff', ['Un seul est différent. Trouve-le !', 'Ouvre grand les yeux : lequel n’est pas pareil ?']));
+  findAll(Array.from({ length: n }, (_, i) => ({ html: i === at ? b : a, ok: i === at })), 'Bravo, tu as l’œil !');
+}
+function roundOmbre(L) { runVariant('ombre', [vOmbre, vOmbreInv, vDiff], L); }
 
-/* 5. Formes et couleurs */
+/* ===== 5. Formes et couleurs ===== */
 const SHAPES = [
-  { k: 'cercle', art: 'le ', g: 'm' }, { k: 'carré', art: 'le ', g: 'm' }, { k: 'triangle', art: 'le ', g: 'm' },
-  { k: 'étoile', art: 'l’', g: 'f' }, { k: 'cœur', art: 'le ', g: 'm' }
+  { k: 'cercle', art: 'le ', g: 'm', pl: 'cercles' }, { k: 'carré', art: 'le ', g: 'm', pl: 'carrés' }, { k: 'triangle', art: 'le ', g: 'm', pl: 'triangles' },
+  { k: 'étoile', art: 'l’', g: 'f', pl: 'étoiles' }, { k: 'cœur', art: 'le ', g: 'm', pl: 'cœurs' }
 ];
 const COLORS = [
   { hex: '#F2545B', m: 'rouge', f: 'rouge' }, { hex: '#3D8BFD', m: 'bleu', f: 'bleue' }, { hex: '#FFC93C', m: 'jaune', f: 'jaune' },
-  { hex: '#2FBF71', m: 'vert', f: 'verte' }, { hex: '#FF7EB6', m: 'rose', f: 'rose' }, { hex: '#9B5DE5', m: 'violet', f: 'violette' }
+  { hex: '#2FBF71', m: 'vert', f: 'verte' }, { hex: '#FF7EB6', m: 'rose', f: 'rose' }, { hex: '#9B5DE5', m: 'violet', f: 'violette' },
+  { hex: '#FF8C2B', m: 'orange', f: 'orange' }, { hex: '#8B5A3C', m: 'marron', f: 'marron' }
 ];
 const COMBOS = SHAPES.flatMap(s => COLORS.map(c => ({ s, c })));
 function shapeSvg(k, hex) {
   const star = (() => { const p = []; for (let i = 0; i < 10; i++) { const r = i % 2 ? 19 : 44, a = Math.PI / 5 * i - Math.PI / 2; p.push((50 + r * Math.cos(a)).toFixed(1) + ',' + (54 + r * Math.sin(a)).toFixed(1)); } return p.join(' '); })();
   const body = {
-    'cercle': `<circle cx="50" cy="50" r="40"/>`,
-    'carré': `<rect x="13" y="13" width="74" height="74" rx="6"/>`,
-    'triangle': `<polygon points="50,8 93,88 7,88"/>`,
-    'étoile': `<polygon points="${star}"/>`,
+    'cercle': `<circle cx="50" cy="50" r="40"/>`, 'carré': `<rect x="13" y="13" width="74" height="74" rx="6"/>`,
+    'triangle': `<polygon points="50,8 93,88 7,88"/>`, 'étoile': `<polygon points="${star}"/>`,
     'cœur': `<path d="M50 88 C20 66 5 46 18 27 C30 11 47 18 50 31 C53 18 70 11 82 27 C95 46 80 66 50 88Z"/>`
   }[k];
   return `<svg viewBox="0 0 100 100" aria-hidden="true"><g fill="${hex}">${body}</g></svg>`;
 }
-function roundFormes(L) {
+function vForme(L) {
   if (L === 1) {
-    const t = one('formeS', SHAPES);
-    const list = [t, ...sample(SHAPES.filter(s => s !== t), 2)];
-    const name = t.art + t.k;
-    setPrompt([`Touche ${name}.`, `Où est ${name} ?`, `Montre-moi ${name} !`][variant('forme', 3)]);
+    const t = one('formeS', SHAPES), list = [t, ...sample(SHAPES.filter(s => s !== t), 2)], name = t.art + t.k;
+    setPrompt(say3('forme', [`Touche ${name}.`, `Où est ${name} ?`, `Montre-moi ${name} !`]));
     choices(shuffle(list).map(s => ({ html: shapeSvg(s.k, pick(COLORS).hex), aria: s.k, ok: s === t })));
     return;
   }
-  const n = L === 2 ? 3 : 4;
-  const t = one('formeC', COMBOS);
-  const items = [t]; const key = x => x.s.k + x.c.m;
-  const tries = [
-    { s: t.s, c: pick(COLORS.filter(c => c !== t.c)) },
-    { s: pick(SHAPES.filter(s => s !== t.s)), c: t.c }
-  ];
-  while (items.length < n) {
-    const cand = tries.shift() || { s: pick(SHAPES), c: pick(COLORS) };
-    if (!items.some(x => key(x) === key(cand))) items.push(cand);
-  }
+  const n = L === 2 ? 3 : 4, t = one('formeC', COMBOS), items = [t], key = x => x.s.k + x.c.m;
+  const tries = [{ s: t.s, c: pick(COLORS.filter(c => c !== t.c)) }, { s: pick(SHAPES.filter(s => s !== t.s)), c: t.c }];
+  while (items.length < n) { const cand = tries.shift() || { s: pick(SHAPES), c: pick(COLORS) }; if (!items.some(x => key(x) === key(cand))) items.push(cand); }
   const name = `${t.s.art}${t.s.k} ${t.c[t.s.g]}`;
-  setPrompt([`Touche ${name}.`, `Où est ${name} ?`, `Montre-moi ${name} !`][variant('forme', 3)]);
+  setPrompt(say3('forme', [`Touche ${name}.`, `Où est ${name} ?`, `Montre-moi ${name} !`]));
   choices(shuffle(items).map(x => ({ html: shapeSvg(x.s.k, x.c.hex), aria: x.s.k + ' ' + x.c[x.s.g], ok: x === t })), true);
 }
+function vFormeCount(L) {
+  const t = one('formeS', SHAPES), n = 1 + rand([3, 5, 7][L - 1]), total = n + [3, 4, 5][L - 1];
+  const items = shuffle([...Array(n).fill(t), ...Array.from({ length: total - n }, () => pick(SHAPES.filter(s => s !== t)))]);
+  const st = $('stage'); items.forEach(s => { const d = document.createElement('div'); d.className = 'mini'; d.innerHTML = shapeSvg(s.k, pick(COLORS).hex); st.appendChild(d); });
+  const de = t.k === 'étoile' ? 'd’' : 'de ';
+  setPrompt(`Combien ${de}${t.pl} vois-tu ?`);
+  const set = new Set([n]); while (set.size < 3) { const d = n + rand(5) - 2; if (d >= 1) set.add(d); }
+  choices(shuffle([...set]).map(v => ({ html: String(v), cls: 'num', ok: v === n, msg: `Bravo ! Il y a ${n} ${n > 1 ? t.pl : t.k} !` })));
+}
+function vFormeAll(L) {
+  const t = one('formeS', SHAPES), n = 2 + rand(3), total = [6, 9, 12][L - 1];
+  const items = shuffle([...Array(n).fill(t), ...Array.from({ length: total - n }, () => pick(SHAPES.filter(s => s !== t)))]);
+  setPrompt(`Touche ${t.g === 'f' ? 'toutes les' : 'tous les'} ${t.pl} !`);
+  findAll(items.map(s => ({ html: shapeSvg(s.k, pick(COLORS).hex), aria: s.k, ok: s === t })), `Bravo ! Tu as trouvé ${t.g === 'f' ? 'toutes les' : 'tous les'} ${t.pl} !`);
+}
+function vCouleur(L) {
+  const c = one('couleur', COLORS), list = [c, ...sample(COLORS.filter(x => x !== c), [2, 3, 5][L - 1])];
+  const le = /^[aeiouo]/.test(c.m) ? 'l’' : 'le ';
+  setPrompt(say3('coul', [`Touche ${le}${c.m}.`, `Où est la couleur ${c.f} ?`, `Montre-moi ${le}${c.m} !`]));
+  choices(shuffle(list).map(x => ({ html: `<span class="blob" style="background:${x.hex}"></span>`, aria: x.m, ok: x === c, msg: `Bravo ! C’est ${le}${c.m} !` })), list.length === 4);
+}
+function roundFormes(L) { runVariant('formes', [vForme, vFormeCount, vFormeAll, vCouleur], L); }
 
-/* 6. Petit ou grand */
+/* ===== 6. Petit ou grand ===== */
 const TAILLE_POOL = ['🐻', '🌸', '⭐', '🐘', '🍓', '🎈', '🐟', '🦋', '🦄', '🧁', '🐢', '🍄', '🌻', '🐳', '🍩'];
-function roundTaille(L) {
-  const n = [3, 4, 5][L - 1];
-  const e = one('taille', TAILLE_POOL);
+function ordre(L, asc) {
+  const n = [3, 4, 5][L - 1], e = one('taille', TAILLE_POOL);
   const sizes = Array.from({ length: n }, (_, i) => 1.4 + i * (3.2 / (n - 1)));
   let next = 0;
-  ask('taille', P.taille);
-  const box = $('opts');
+  setPrompt(asc ? say3('asc', ['Range-les du plus petit au plus grand.', 'Commence par le tout petit, finis par le très grand !'])
+                : say3('desc', ['Cette fois, du plus grand au plus petit !', 'Commence par le plus grand, jusqu’au tout petit.']));
   shuffle(sizes.map((s, i) => ({ s, i }))).forEach(it => {
-    const b = document.createElement('button');
-    b.className = 'opt size'; b.style.fontSize = it.s.toFixed(2) + 'rem'; b.textContent = e;
+    const b = document.createElement('button'); b.className = 'opt size'; b.style.fontSize = it.s.toFixed(2) + 'rem'; b.textContent = e;
     b.setAttribute('aria-label', 'Taille ' + (it.i + 1));
     b.onclick = () => {
       if (state.busy || b.classList.contains('oui')) return;
-      if (it.i === next) {
+      const want = asc ? next : n - 1 - next;
+      if (it.i === want) {
         next++; b.classList.add('oui'); sTap();
         const bd = document.createElement('span'); bd.className = 'badge'; bd.textContent = next; b.appendChild(bd);
-        if (next === n) win(one('tailleOk', ['Bravo ! Tout est bien rangé !', 'Parfait, c’est dans le bon ordre !', 'Super rangement !'], 1));
-      } else { b.classList.remove('non'); void b.offsetWidth; b.classList.add('non'); setTimeout(() => b.classList.remove('non'), 450); lose(); }
+        if (next === n) win('Parfait, c’est bien rangé !');
+      } else { shake(b); lose(); }
     };
-    box.appendChild(b);
+    $('opts').appendChild(b);
   });
 }
-
-/* 7. Compter */
-const COMPTE_POOL = ['🐞', '🍓', '⭐', '🐟', '🎈', '🌼', '🐥', '🍪', '🦋', '🧁', '🍒', '🐌', '🌟', '🍬'];
-function roundCompte(L) {
-  const range = L === 3 ? Array.from({ length: 9 }, (_, i) => i + 4) : Array.from({ length: L === 1 ? 5 : 10 }, (_, i) => i + 1);
-  const n = one('compteN' + L, range, 3);
-  addCells(Array(n).fill(one('compteE', COMPTE_POOL)), 'count');
-  const set = new Set([n]);
-  const k = L === 3 ? 4 : 3;
-  while (set.size < k) { const d = n + (rand(5) - 2); if (d >= 1 && d <= 15) set.add(d); }
-  ask('compte', P.compte);
-  choices(shuffle([...set]).map(v => ({ html: String(v), ok: v === n, cls: 'num', msg: `Bravo ! Il y en a ${n} !` })), true);
+const vAsc = L => ordre(L, true), vDesc = L => ordre(L, false);
+function vExtreme(L) {
+  const n = [3, 4, 5][L - 1], e = one('taille', TAILLE_POOL), big = rand(2) === 0;
+  const sizes = shuffle(Array.from({ length: n }, (_, i) => 1.4 + i * (3.2 / (n - 1))));
+  const target = big ? Math.max(...sizes) : Math.min(...sizes);
+  setPrompt(big ? 'Touche le plus grand !' : 'Touche le plus petit !');
+  choices(sizes.map(s => ({ html: `<span style="font-size:${s.toFixed(2)}rem">${e}</span>`, cls: 'size', aria: 'Taille', ok: s === target })));
 }
+function vCrayons(L) {
+  const n = [3, 4, 5][L - 1], long = rand(2) === 0;
+  const ws = shuffle(Array.from({ length: n }, (_, i) => 30 + i * (65 / (n - 1))));
+  const cols = sample(COLORS, n), target = long ? Math.max(...ws) : Math.min(...ws);
+  $('opts').classList.add('col');
+  setPrompt(long ? 'Touche le crayon le plus long !' : 'Touche le crayon le plus court !');
+  choices(ws.map((w, i) => ({ html: `<span class="crayon" style="width:${w}%;background:${cols[i].hex}"></span>`, cls: 'bar', aria: 'Crayon', ok: w === target })));
+}
+function roundTaille(L) { runVariant('taille', [vAsc, vExtreme, vDesc, vCrayons], L); }
 
-/* 8. Le plus, le moins */
+/* ===== 7. Compter ===== */
+const COMPTE_POOL = [['🍓', 'fraises'], ['🎈', 'ballons'], ['⭐', 'étoiles'], ['🐞', 'coccinelles'], ['🍪', 'biscuits'], ['🌸', 'fleurs'], ['🐟', 'poissons'], ['🐥', 'poussins'], ['🍒', 'cerises'], ['🧁', 'gâteaux']];
+const countMax = L => [5, 10, 12][L - 1];
+function near(n, k = 3, max = 15) { const set = new Set([n]); while (set.size < k) { const d = n + rand(5) - 2; if (d >= 1 && d <= max) set.add(d); } return shuffle([...set]); }
+function vCompte(L) {
+  const range = L === 3 ? Array.from({ length: 9 }, (_, i) => i + 4) : Array.from({ length: countMax(L) }, (_, i) => i + 1);
+  const n = one('compteN' + L, range, 3), e = one('compteE', COMPTE_POOL);
+  addCells(Array(n).fill(e[0]), 'count');
+  setPrompt(say3('compte', ['Compte bien avec ton doigt. Combien y en a-t-il ?', `Combien de ${e[1]} vois-tu ?`, 'Compte-les un par un. Combien ?']));
+  choices(near(n, L === 3 ? 4 : 3).map(v => ({ html: String(v), ok: v === n, cls: 'num', msg: `Bravo ! Il y en a ${n} !` })), true);
+}
+function vPickN(L) {
+  const n = 1 + rand(countMax(L) - 1), e = one('compteE', COMPTE_POOL), total = Math.min(n + 2 + rand(4), 15);
+  numCells([n]);
+  const nom = n === 1 ? e[1].replace(/x$|s$/, '') : e[1];
+  setPrompt(`Touche exactement ${n} ${nom}, puis appuie sur C’est bon.`);
+  const box = $('opts'); box.classList.add('find'); let sel = 0;
+  for (let i = 0; i < total; i++) {
+    const b = document.createElement('button'); b.className = 'opt sm'; b.textContent = e[0]; b.setAttribute('aria-label', e[1]);
+    b.onclick = () => { if (state.busy) return; b.classList.toggle('sel'); sel += b.classList.contains('sel') ? 1 : -1; sTap(); };
+    box.appendChild(b);
+  }
+  const ok = document.createElement('button'); ok.className = 'btn okbtn'; ok.textContent = 'C’est bon ✔️';
+  ok.onclick = () => {
+    if (state.busy) return;
+    if (sel === n) win(`Bravo ! Tu en as pris ${n}, c’est exactement ça !`);
+    else { lose(); say(sel < n ? `Tu en as touché ${sel}. Il en faut ${n}, ajoute-en !` : `Tu en as touché ${sel}. Il en faut seulement ${n}, enlèves-en !`, false); }
+  };
+  box.appendChild(ok);
+}
+function vGroupeNombre(L) {
+  const n = 1 + rand(countMax(L)), e = one('compteE', COMPTE_POOL);
+  numCells([n]);
+  setPrompt(say3('gn', [`Trouve le groupe qui a ${n} ${n > 1 ? e[1] : 'objet'}.`, `Où y en a-t-il ${n} ?`]));
+  choices(near(n, 3, 12).map(v => ({ html: e[0].repeat(v), cls: 'grp', aria: v + ' objets', ok: v === n, msg: `Bravo ! Il y en a bien ${n} !` })));
+}
+function vSuiteNombres(L) {
+  let step = 1, start, len = 4, hole;
+  if (L === 1) { start = 1 + rand(6); hole = 3; }
+  else if (L === 2) { start = 1 + rand(10); hole = 1 + rand(3); }
+  else { if (rand(2)) { step = 2; start = 2 * (1 + rand(3)); } else { step = -1; start = 6 + rand(7); } hole = 1 + rand(3); }
+  const seq = Array.from({ length: len }, (_, i) => start + i * step), ans = seq[hole];
+  numCells(seq.map((v, i) => i === hole ? '?' : v));
+  setPrompt(step === -1 ? 'On compte à l’envers ! Quel nombre manque ?' : step === 2 ? 'On saute de 2 en 2 ! Quel nombre manque ?' : 'Quel nombre manque ?');
+  choices(near(ans, 3, 20).map(v => ({ html: String(v), cls: 'num', ok: v === ans, msg: `Bravo ! C’était ${ans} !` })));
+}
+function roundCompte(L) { runVariant('compte', [vCompte, vPickN, vGroupeNombre, vSuiteNombres], L); }
+
+/* ===== 8. Le plus, le moins ===== */
 const PLUS_POOL = ['🍭', '🌸', '🐣', '🍓', '⭐', '🎈', '🍒', '🐞', '💎', '🍪'];
-function roundPlus(L) {
-  const max = [5, 8, 10][L - 1];
-  const pairs = [];
+function vPlusGroupes(L) {
+  const max = [5, 8, 10][L - 1], pairs = [];
   for (let a = 1; a <= max; a++) for (let b = 1; b <= max; b++) if (a !== b && (L > 1 || Math.abs(a - b) >= 2)) pairs.push([a, b]);
-  const [a, b] = one('plusN' + L, pairs, 10);
-  const moins = L > 1 && rand(2) === 1;
-  const e = one('plusE', PLUS_POOL);
+  const [a, b] = one('plusN' + L, pairs, 10), moins = L > 1 && rand(2) === 1, e = one('plusE', PLUS_POOL);
   const good = moins ? Math.min(a, b) : Math.max(a, b);
-  setPrompt(moins
-    ? ['Touche le groupe où il y en a le moins.', 'Où y en a-t-il le moins ?', 'Quel groupe est le plus petit ?'][variant('moins', 3)]
-    : ['Touche le groupe où il y en a le plus.', 'Où y en a-t-il le plus ?', 'Quel groupe est le plus gros ?'][variant('plus', 3)]);
-  choices([a, b].map(v => ({
-    html: e.repeat(v), cls: 'grp', aria: v + ' objets', ok: v === good,
-    msg: `Bravo ! ${Math.max(a, b)}, c’est plus que ${Math.min(a, b)}.`
-  })));
+  setPrompt(moins ? say3('moins', ['Touche le groupe où il y en a le moins.', 'Où y en a-t-il le moins ?']) : say3('plus', ['Touche le groupe où il y en a le plus.', 'Où y en a-t-il le plus ?']));
+  choices([a, b].map(v => ({ html: e.repeat(v), cls: 'grp', aria: v + ' objets', ok: v === good, msg: `Bravo ! ${Math.max(a, b)}, c’est plus que ${Math.min(a, b)}.` })));
 }
+function vPlusNombres(L) {
+  const max = [6, 10, 20][L - 1], k = L === 1 ? 2 : 3, big = rand(2) === 0;
+  const nums = sample(Array.from({ length: max }, (_, i) => i + 1), k), target = big ? Math.max(...nums) : Math.min(...nums);
+  setPrompt(big ? 'Touche le nombre le plus grand !' : 'Touche le nombre le plus petit !');
+  choices(nums.map(v => ({ html: String(v), cls: 'num', ok: v === target, msg: `Bravo ! ${target}, c’est le plus ${big ? 'grand' : 'petit'} !` })));
+}
+function vAutant(L) {
+  const max = [5, 7, 9][L - 1], n = 1 + rand(max), e = one('plusE', PLUS_POOL), e2 = pick(PLUS_POOL.filter(x => x !== e));
+  $('stage').innerHTML = `<div class="stack wide">${e.repeat(n)}</div>`;
+  setPrompt(say3('autant', ['Trouve le groupe qui en a autant.', 'Lequel en a pareil, ni plus ni moins ?']));
+  choices(near(n, 3, 12).map(v => ({ html: e2.repeat(v), cls: 'grp', aria: v + ' objets', ok: v === n, msg: `Bravo ! ${n} et ${n}, c’est pareil !` })));
+}
+function roundPlus(L) { runVariant('plus', [vPlusGroupes, vPlusNombres, vAutant], L); }
 
-/* 9. Additions */
-const ADD_POOL = ['🍎', '🍓', '🌸', '⭐', '🧁', '🐞', '🎈', '🍒', '🐥'];
-function roundAddition(L) {
-  const maxSum = L === 1 ? 5 : 10;
-  const list = [];
+/* ===== 9. Additions ===== */
+const ADD_POOL = [['🍎', 'pommes', 'pomme'], ['🍓', 'fraises', 'fraise'], ['🎈', 'ballons', 'ballon'], ['🧁', 'gâteaux', 'gâteau'], ['🐞', 'coccinelles', 'coccinelle'], ['🌸', 'fleurs', 'fleur'], ['🍬', 'bonbons', 'bonbon']];
+function addPair(L) {
+  const maxSum = L === 1 ? 5 : 10, list = [];
   for (let a = 1; a < maxSum; a++) for (let b = 1; a + b <= maxSum; b++) list.push([a, b]);
-  const [a, b] = one('add' + L, list, 8);
-  const s = a + b; const e = one('addE', ADD_POOL);
-  $('stage').innerHTML = L < 3
-    ? `<div class="eq"><span>${e.repeat(a)}</span><b>+</b><span>${e.repeat(b)}</span><b>=</b><span class="cell q">?</span></div>`
-    : `<div class="eq"><span class="n">${a}</span><b>+</b><span class="n">${b}</span><b>=</b><span class="cell q">?</span></div>`;
-  const set = new Set([s]);
-  while (set.size < 3) { const d = s + (rand(5) - 2); if (d >= 1 && d <= 12) set.add(d); }
-  setPrompt([`Combien font ${a} plus ${b} ?`, `${a} et encore ${b}, ça fait combien ?`, `Si j’en ai ${a} et que j’en ajoute ${b}, combien j’en ai ?`][variant('add', 3)]);
-  choices(shuffle([...set]).map(v => ({ html: String(v), cls: 'num', ok: v === s, msg: `Bravo ! ${a} plus ${b}, ça fait ${s} !` })));
+  return one('add' + L, list, 8);
 }
+const eqHtml = parts => `<div class="eq">${parts.join('')}</div>`;
+const pic = (e, n) => `<span>${e.repeat(n)}</span>`, numb = n => `<span class="n">${n}</span>`, op = o => `<b>${o}</b>`, qm = '<span class="cell q">?</span>';
+function vAdd(L) {
+  const [a, b] = addPair(L), s = a + b, e = one('addE', ADD_POOL)[0];
+  $('stage').innerHTML = eqHtml(L < 3 ? [pic(e, a), op('+'), pic(e, b), op('='), qm] : [numb(a), op('+'), numb(b), op('='), qm]);
+  setPrompt(say3('add', [`Combien font ${a} plus ${b} ?`, `${a} et encore ${b}, ça fait combien ?`]));
+  choices(near(s, 3, 12).map(v => ({ html: String(v), cls: 'num', ok: v === s, msg: `Bravo ! ${a} plus ${b}, ça fait ${s} !` })));
+}
+function vManque(L) {
+  const [a, b] = addPair(L), s = a + b, e = one('addE', ADD_POOL)[0];
+  $('stage').innerHTML = eqHtml(L < 3 ? [pic(e, a), op('+'), qm, op('='), pic(e, s)] : [numb(a), op('+'), qm, op('='), numb(s)]);
+  setPrompt(`Il y en a ${a}. Combien faut-il en ajouter pour en avoir ${s} ?`);
+  choices(near(b, 3, 10).map(v => ({ html: String(v), cls: 'num', ok: v === b, msg: `Bravo ! ${a} plus ${b}, ça fait bien ${s} !` })));
+}
+const SOUS = [['🎈', 'ballons', 's’envolent', 'ballon', 's’envole'], ['🐦', 'oiseaux', 's’envolent', 'oiseau', 's’envole'], ['🍪', 'biscuits', 'sont mangés', 'biscuit', 'est mangé'], ['🐟', 'poissons', 'partent nager', 'poisson', 'part nager'], ['🦋', 'papillons', 's’envolent', 'papillon', 's’envole']];
+function vSous(L) {
+  const t = 2 + rand([4, 7, 9][L - 1]), k = 1 + rand(t - 1), r = t - k, o = one('sous', SOUS);
+  const st = $('stage');
+  for (let i = 0; i < t; i++) { const d = document.createElement('div'); d.className = 'count' + (i >= r ? ' gone' : ''); d.textContent = o[0]; st.appendChild(d); }
+  setPrompt(`Il y a ${t} ${o[1]}. ${k} ${k > 1 ? o[1] + ' ' + o[2] : o[3] + ' ' + o[4]}. Combien en reste-t-il ?`);
+  choices(near(r, 3, 12).map(v => ({ html: String(v), cls: 'num', ok: v === r, msg: `Bravo ! ${t} moins ${k}, il en reste ${r} !` })));
+}
+function vHistoire(L) {
+  const [a, b] = addPair(L), s = a + b, o = one('addE', ADD_POOL), qui = pick(['Maman', 'Papa', 'Mamie', 'Papi', 'Sa copine']);
+  if (L < 3) $('stage').innerHTML = eqHtml([pic(o[0], a), op('+'), pic(o[0], b)]);
+  else $('stage').innerHTML = `<div class="big1">${o[0]}</div>`;
+  setPrompt(`${kidName()} a ${a} ${a > 1 ? o[1] : o[2]}. ${qui} lui en donne ${b}. Combien en a-t-elle maintenant ?`);
+  choices(near(s, 3, 12).map(v => ({ html: String(v), cls: 'num', ok: v === s, msg: `Bravo ! Elle en a ${s} !` })));
+}
+function roundAddition(L) { runVariant('addition', [vAdd, vSous, vManque, vHistoire], L); }
 
-/* 10. Les lettres */
+/* ===== 10. Les lettres ===== */
 const LETTRES = [
   ['A', 'ananas', '🍍'], ['B', 'ballon', '🎈'], ['C', 'canard', '🦆'], ['D', 'dauphin', '🐬'], ['É', 'éléphant', '🐘'],
   ['F', 'fraise', '🍓'], ['G', 'gâteau', '🎂'], ['K', 'koala', '🐨'], ['L', 'lapin', '🐰'], ['M', 'maison', '🏠'],
   ['N', 'nuage', '☁️'], ['O', 'orange', '🍊'], ['P', 'papillon', '🦋'], ['R', 'robot', '🤖'], ['S', 'soleil', '☀️'],
   ['T', 'tortue', '🐢'], ['V', 'vache', '🐄'], ['Z', 'zèbre', '🦓'], ['J', 'jupe', '👗'], ['H', 'hibou', '🦉']
 ];
-function roundLettres(L) {
-  const t = one('lettre', LETTRES);
-  const list = [t, ...sample(LETTRES.filter(x => x !== t), L === 3 ? 3 : 2)];
-  $('stage').innerHTML = L < 3
-    ? `<div class="letter">${t[0]}<small>${t[0].toLowerCase()}</small></div>`
-    : `<div class="letter">${t[0].toLowerCase()}</div>`;
-  setPrompt([`Trouve l’image qui commence par la lettre ${t[0]}.`, `Quelle image commence par ${t[0]} ?`, `Voici la lettre ${t[0]}. Quelle image commence comme ça ?`][variant('lettre', 3)]);
+const ALPHA = 'ABCDEFGHIJKLMNOPRSTUVZ'.split('');
+const CONFUS = { B: ['D', 'P', 'R'], D: ['B', 'P', 'O'], P: ['B', 'R', 'D'], M: ['N', 'W'], N: ['M', 'H'], E: ['F'], F: ['E', 'T'], O: ['Q', 'C', 'D'], C: ['G', 'O'], V: ['U', 'W'] };
+function vImageLettre(L) {
+  const t = one('lettre', LETTRES), list = [t, ...sample(LETTRES.filter(x => x !== t), L === 3 ? 3 : 2)];
+  $('stage').innerHTML = L < 3 ? `<div class="letter">${t[0]}<small>${t[0].toLowerCase()}</small></div>` : `<div class="letter">${t[0].toLowerCase()}</div>`;
+  setPrompt(say3('lettre', [`Trouve l’image qui commence par la lettre ${t[0]}.`, `Quelle image commence par ${t[0]} ?`]));
   choices(shuffle(list).map(x => ({ html: x[2], aria: x[1], ok: x === t, msg: `Bravo ! ${t[0]} comme ${t[1]} !` })), true);
 }
+function vLettreImage(L) {
+  const t = one('lettre', LETTRES), others = sample(LETTRES.filter(x => x !== t).map(x => x[0]), L === 3 ? 3 : 2);
+  addCells([t[2]], 'big1');
+  setPrompt(`${t[1]} ! Par quelle lettre commence ${t[1]} ?`);
+  choices(shuffle([t[0], ...others]).map(l => ({ html: L === 3 ? l.toLowerCase() : l, cls: 'num', ok: l === t[0], msg: `Bravo ! ${t[1]} commence par ${t[0]} !` })), L === 3);
+}
+function vTrouveLettres(L) {
+  const t = one('lettre', LETTRES)[0].replace('É', 'E'), n = 2 + rand(3), total = [6, 9, 12][L - 1];
+  const pool = L === 1 ? ALPHA.filter(x => x !== t) : [...(CONFUS[t] || []), ...ALPHA].filter(x => x !== t);
+  const items = shuffle([...Array(n).fill(t), ...Array.from({ length: total - n }, () => L === 1 ? pick(pool) : (rand(2) && CONFUS[t] ? pick(CONFUS[t]) : pick(pool)))]);
+  setPrompt(`Touche toutes les lettres ${t} !`);
+  findAll(items.map(l => ({ html: `<b class="lt">${l}</b>`, aria: l, ok: l === t })), `Bravo ! Tu as trouvé tous les ${t} !`);
+}
+function vMajMin(L) {
+  const t = one('majmin', ALPHA), base = (CONFUS[t] || []).concat(sample(ALPHA.filter(x => x !== t), 3)).filter(x => x !== t);
+  const others = [...new Set(L === 1 ? sample(ALPHA.filter(x => x !== t), 2) : base)].slice(0, L === 3 ? 3 : 2);
+  $('stage').innerHTML = `<div class="letter">${t}</div>`;
+  setPrompt(`Trouve la petite lettre qui va avec ce grand ${t}.`);
+  choices(shuffle([t, ...others]).map(l => ({ html: l.toLowerCase(), cls: 'num', ok: l === t, msg: `Bravo ! Grand ${t}, petit ${t} !` })), L === 3);
+}
+function roundLettres(L) { runVariant('lettres', [vImageLettre, vLettreImage, vTrouveLettres, vMajMin], L); }
 
-/* 11. Les syllabes */
+/* ===== 11. Les sons et les mots ===== */
 const MOTS = [
   ['🐱', 'chat', 1], ['🐶', 'chien', 1], ['🐻', 'ours', 1], ['🍞', 'pain', 1], ['🌸', 'fleur', 1], ['🔑', 'clé', 1], ['🥛', 'lait', 1],
   ['🐟', 'pois-son', 2], ['🐰', 'la-pin', 2], ['🚲', 'vé-lo', 2], ['☀️', 'so-leil', 2], ['🐢', 'tor-tue', 2], ['🤖', 'ro-bot', 2],
@@ -825,16 +1092,36 @@ const MOTS = [
   ['🦕', 'di-no-saure', 3], ['☂️', 'pa-ra-pluie', 3], ['📱', 'té-lé-phone', 3],
   ['💻', 'or-di-na-teur', 4], ['🚁', 'hé-li-cop-tère', 4]
 ];
-function roundSyllabes(L) {
-  const max = [2, 3, 4][L - 1];
-  const m = one('sons' + L, MOTS.filter(x => x[2] <= max));
-  const word = m[1].replace(/-/g, ''), n = m[2];
-  $('stage').innerHTML = `<div style="font-size:5.5rem;line-height:1">${m[0]}</div>`;
-  setPrompt([`${word}. Tape dans tes mains pour chaque morceau du mot. Combien de fois ?`, `Dis ${word} en tapant dans tes mains. Combien de tapes ?`, `${word} ! Combien de fois tu tapes dans tes mains ?`][variant('sons', 3)]);
+const RIMES = [
+  [['🐱', 'chat'], ['🐀', 'rat']], [['🐰', 'lapin'], ['🎄', 'sapin'], ['🐬', 'dauphin'], ['🍞', 'pain']],
+  [['✈️', 'avion'], ['🦁', 'lion'], ['🐷', 'cochon'], ['🎈', 'ballon'], ['🐟', 'poisson']],
+  [['☀️', 'soleil'], ['🐝', 'abeille']], [['🏍️', 'moto'], ['🚲', 'vélo'], ['⛵', 'bateau'], ['🎂', 'gâteau']],
+  [['🌸', 'fleur'], ['❤️', 'cœur']], [['🐭', 'souris'], ['🍚', 'riz']]
+];
+function vClap(L) {
+  const max = [2, 3, 4][L - 1], m = one('sons' + L, MOTS.filter(x => x[2] <= max)), word = m[1].replace(/-/g, ''), n = m[2];
+  $('stage').innerHTML = `<div class="big1">${m[0]}</div>`;
+  setPrompt(say3('clap', [`${word}. Tape dans tes mains pour chaque morceau du mot. Combien de fois ?`, `Dis ${word} en tapant dans tes mains. Combien de tapes ?`]));
   const opts = L === 3 ? [1, 2, 3, 4] : [1, 2, 3];
-  const spoken = m[1].replace(/-/g, ', ');
-  choices(opts.map(v => ({ html: '👏'.repeat(v), cls: 'num', aria: v + ' fois', ok: v === n, msg: `Bravo ! ${spoken}. ${n} fois !` })), L === 3);
+  choices(opts.map(v => ({ html: '👏'.repeat(v), cls: 'num', aria: v + ' fois', ok: v === n, msg: `Bravo ! ${m[1].replace(/-/g, ', ')}. ${n} fois !` })), L === 3);
 }
+function vLongMot(L) {
+  const counts = L === 1 ? [1, 3] : L === 2 ? [1, 2, 3] : [1, 2, 4];
+  const words = counts.map(c => pick(MOTS.filter(x => x[2] === c)));
+  const longest = words[words.length - 1], order = shuffle(words);
+  setPrompt(`Écoute : ${order.map(w => w[1].replace(/-/g, '')).join(', ')}. Quel est le mot le plus long ?`);
+  choices(order.map(w => ({ html: w[0], aria: w[1].replace(/-/g, ''), ok: w === longest, msg: `Bravo ! ${longest[1].replace(/-/g, ', ')}, c’est le plus long !` })));
+}
+function vRime(L) {
+  const g = one('rimeG', RIMES), [t, r] = sample(g, 2);
+  const others = sample(RIMES.filter(x => x !== g).map(x => pick(x)), L === 3 ? 3 : 2), order = shuffle([r, ...others]);
+  addCells([t[0]], 'big1');
+  setPrompt(`Qu’est-ce qui rime avec ${t[1]} ? Écoute : ${order.map(o => o[1]).join(', ')}.`);
+  choices(order.map(o => ({ html: o[0], aria: o[1], ok: o === r, msg: `Bravo ! ${t[1]}, ${r[1]}, ça rime !` })), order.length === 4);
+}
+function roundSyllabes(L) { runVariant('sons', [vClap, vRime, vLongMot], L); }
+
+$('mix').onclick = startMix;
 
 /* ---------- Album ---------- */
 $('toAlbum').onclick = () => {

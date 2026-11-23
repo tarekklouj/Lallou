@@ -139,6 +139,27 @@ h3{font-size:1.2rem;margin:22px 0 10px;font-weight:600}
 .house .roof{font-size:2.6rem}
 .lt{font-size:2rem;font-weight:700}
 
+/* Clavier */
+.wordbox{flex-basis:100%;display:flex;justify-content:center;gap:6px;flex-wrap:wrap;margin-top:6px}
+.lbox{width:44px;height:54px;border-radius:12px;background:var(--card);border:3px solid var(--shadow);display:grid;place-items:center;font-size:2rem;font-weight:700;color:var(--ink)}
+.lbox.ghost{color:var(--shadow)}
+.lbox.cur{border-color:var(--pink);animation:pulse 1s infinite}
+.lbox.ok{background:var(--green);color:#fff;border-color:var(--green)}
+.hintword{font-size:2.2rem;font-weight:700;letter-spacing:.08em}
+.hintword b{color:var(--pink)}
+.kb{width:100%;max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:7px}
+.kbrow{display:flex;gap:5px;justify-content:center}
+.key{flex:1;max-width:52px;height:52px;border-radius:12px;background:var(--card);box-shadow:0 4px 0 var(--shadow);font-size:1.35rem;font-weight:700;padding:0;transition:transform .08s}
+.key:active,.key.press{transform:translateY(3px);box-shadow:0 1px 0 var(--shadow)}
+.key.glow{background:var(--gold);color:#5a3a00;animation:pulse 1s infinite}
+.key.wide{max-width:300px;flex:6;font-size:1.1rem}
+.key.wide2{max-width:80px;flex:1.6}
+@keyframes pulse{50%{transform:scale(1.08)}}
+.paper{background:#fff;color:#4A2C55;border-radius:22px;min-height:170px;padding:14px 18px;font-size:2.1rem;font-weight:600;letter-spacing:.06em;line-height:3rem;word-break:break-all;box-shadow:0 6px 0 var(--shadow);margin-bottom:16px;background-image:repeating-linear-gradient(transparent 0 2.9rem,#F5B8D6 2.9rem 3rem);background-position:0 14px}
+.paper .ph{color:#C9A3C3;font-size:1.4rem;letter-spacing:0}
+.caret{display:inline-block;width:3px;height:1.6rem;background:var(--pink);vertical-align:-.2rem;margin-left:2px;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+
 /* Mémoire */
 .mem{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;max-width:420px;margin:0 auto;width:100%}
 .card{
@@ -241,6 +262,7 @@ th{font-weight:600}
     <div class="menu">
       <button class="tile" style="--c:var(--pink)" id="toColor"><span class="ic">🖍️</span><span class="nm">Colorier</span><span class="lv">9 dessins</span></button>
       <button class="tile" style="--c:var(--orange)" id="toDraw"><span class="ic">🎨</span><span class="nm">Dessiner</span><span class="lv">Dessin libre</span></button>
+      <button class="tile" style="--c:var(--blue)" id="toWrite"><span class="ic">✏️</span><span class="nm">Mon cahier</span><span class="lv">Écris ce que tu veux</span></button>
       <button class="tile" style="--c:var(--gold)" id="toAlbum"><span class="ic">📒</span><span class="nm">Mon album</span><span class="lv" id="albumCount"></span></button>
     </div>
     <button class="parentLink" id="toGate">🔒 Espace parents</button>
@@ -289,6 +311,18 @@ th{font-weight:600}
     <div class="canvasBox"><canvas id="cv"></canvas></div>
     <div class="palette" id="palette"></div>
     <div class="palette" id="tools"></div>
+  </section>
+
+  <!-- Cahier -->
+  <section id="write" class="hidden">
+    <div class="bar">
+      <button class="round" data-home aria-label="Retour">🏠</button>
+      <div class="dtitle">Mon cahier</div>
+      <button class="round" id="readPaper" aria-label="Lire à voix haute">🔊</button>
+    </div>
+    <div class="paper" id="paper"></div>
+    <div id="wkb"></div>
+    <button class="btn ghost small" id="clearPaper" style="display:block;margin:16px auto 0">🗑️ Tout effacer</button>
   </section>
 
   <!-- Coloriage -->
@@ -486,7 +520,7 @@ const BRAVO = ['Bravo !', 'Super !', 'Génial !', 'Tu es trop forte !', 'Excelle
 const ENCORE = ['Presque ! Essaie encore.', 'Oups, regarde bien et réessaie.', 'Pas tout à fait, essaie encore.', 'Ce n’est pas grave, réessaie !', 'Prends ton temps et réessaie.'];
 
 /* ---------- Écrans ---------- */
-const SCREENS = ['setup', 'menu', 'game', 'end', 'album', 'draw', 'color', 'gate', 'parent', 'pause'];
+const SCREENS = ['setup', 'menu', 'game', 'end', 'album', 'draw', 'color', 'write', 'gate', 'parent', 'pause'];
 let cur = 'menu';
 function show(id) {
   cur = id;
@@ -508,9 +542,10 @@ const GAMES = {
   plus:     { name: 'Le plus, le moins', icon: '⚖️', cat: 'Compter',   color: 'var(--pink)',   round: roundPlus },
   addition: { name: 'Additions',         icon: '➕', cat: 'Compter',   color: 'var(--violet)', round: roundAddition },
   lettres:  { name: 'Les lettres',       icon: '🔤', cat: 'Lire',      color: 'var(--green)',  round: roundLettres },
-  sons:     { name: 'Sons et rimes',      icon: '👏', cat: 'Lire',      color: 'var(--pink)',   round: roundSyllabes }
+  sons:     { name: 'Sons et rimes',      icon: '👏', cat: 'Lire',      color: 'var(--pink)',   round: roundSyllabes },
+  ecrire:   { name: 'J’écris',           icon: '⌨️', cat: 'Lire',      color: 'var(--blue)',   round: roundEcrire }
 };
-const CATS = { 'Réfléchir': '🧠 Réfléchir', 'Observer': '👀 Observer', 'Compter': '🔢 Compter', 'Lire': '📖 Lire' };
+const CATS = { 'Réfléchir': '🧠 Réfléchir', 'Observer': '👀 Observer', 'Compter': '🔢 Compter', 'Lire': '📖 Lire et écrire' };
 const STICKERS = ['🦄','🌈','🧁','🎀','👑','🦋','🌸','🐱','🐰','🐼','🦊','🐬','🍓','🍭','🎈','⭐','🌙','☀️','🌷','🐞','🐢','🦒','🐧','🍉','🍦','🎠','🎨','💎','🏰','🧚‍♀️'];
 const AVATARS = ['🦉','🐱','🐰','🦊','🐼','🦋','🧚‍♀️','👸','🐬','🐨'];
 
@@ -566,7 +601,7 @@ function nextRound() {
   if (cur !== 'game') return;
   if (state.round >= state.total) return endGame();
   if (timeUp()) return showPause();
-  state.busy = false; state.token++;
+  state.busy = false; state.token++; kbHandler = null;
   renderDots();
   $('stage').innerHTML = ''; $('opts').innerHTML = ''; $('opts').className = 'opts';
   GAMES[curGame()].round(level());
@@ -1151,6 +1186,130 @@ function vRime(L) {
 function roundSyllabes(L) { runVariant('sons', [vClap, vRime, vLongMot], L); }
 
 $('mix').onclick = startMix;
+
+/* ===== 12. J’écris (clavier) ===== */
+const norm = s => String(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/Œ/g, 'OE').replace(/[^A-Z]/g, '');
+let kbHandler = null;
+const KB_ROWS = ['AZERTYUIOP', 'QSDFGHJKLM', 'WXCVBN'];
+function buildKeyboard(box, onKey, extras = false) {
+  const kb = document.createElement('div'); kb.className = 'kb';
+  KB_ROWS.forEach((row, r) => {
+    const line = document.createElement('div'); line.className = 'kbrow';
+    [...row].forEach(ch => {
+      const k = document.createElement('button'); k.className = 'key'; k.textContent = ch; k.dataset.k = ch; k.setAttribute('aria-label', 'Lettre ' + ch);
+      k.onclick = () => onKey(ch);
+      line.appendChild(k);
+    });
+    if (extras && r === 2) {
+      const bk = document.createElement('button'); bk.className = 'key wide2'; bk.textContent = '⌫'; bk.dataset.k = 'BACK'; bk.setAttribute('aria-label', 'Effacer'); bk.onclick = () => onKey('BACK'); line.appendChild(bk);
+    }
+    kb.appendChild(line);
+  });
+  if (extras) {
+    const line = document.createElement('div'); line.className = 'kbrow';
+    const sp = document.createElement('button'); sp.className = 'key wide'; sp.textContent = 'espace'; sp.dataset.k = 'SPACE'; sp.onclick = () => onKey('SPACE'); line.appendChild(sp);
+    kb.appendChild(line);
+  }
+  box.appendChild(kb);
+  return kb;
+}
+document.addEventListener('keydown', e => {
+  if (!kbHandler || !['game', 'write'].includes(cur)) return;
+  if (e.target && /INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) return;
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  let k = null;
+  if (e.key === 'Backspace') k = 'BACK';
+  else if (e.key === ' ') k = 'SPACE';
+  else if (e.key.length === 1) { const n = norm(e.key); if (n.length === 1) k = n; }
+  if (!k) return;
+  e.preventDefault();
+  const el = document.querySelector(`.key[data-k="${k}"]`);
+  if (el) { el.classList.add('press'); setTimeout(() => el.classList.remove('press'), 150); }
+  kbHandler(k);
+});
+const MOTS_ECRIRE = [
+  ['🐱', 'chat'], ['🐀', 'rat'], ['🚌', 'bus'], ['🐻', 'ours'], ['🌙', 'lune'], ['🥛', 'lait'], ['🌹', 'rose'], ['👃', 'nez'],
+  ['🦁', 'lion'], ['🐺', 'loup'], ['🚲', 'vélo'], ['🏍️', 'moto'], ['🥝', 'kiwi'], ['🧚', 'fée'], ['🤴', 'roi'], ['🍞', 'pain'],
+  ['🍎', 'pomme'], ['🐄', 'vache'], ['🐰', 'lapin'], ['🤖', 'robot'], ['🍓', 'fraise'], ['🐢', 'tortue'], ['☀️', 'soleil'],
+  ['⛵', 'bateau'], ['🏠', 'maison'], ['🎈', 'ballon'], ['🦆', 'canard'], ['⭐', 'étoile'], ['🐟', 'poisson'], ['🎁', 'cadeau']
+];
+const motsNiveau = L => MOTS_ECRIRE.filter(m => norm(m[1]).length <= [4, 5, 7][L - 1]);
+function typeWord(emoji, word, { hint = false, hidden = false, prompt, msg }) {
+  const target = norm(word), disp = [...word.toUpperCase()].filter(c => norm(c).length);
+  const st = $('stage');
+  if (emoji) st.innerHTML = `<div class="big1">${emoji}</div>`;
+  const row = document.createElement('div'); row.className = 'wordbox'; st.appendChild(row);
+  const boxes = disp.map(ch => { const b = document.createElement('div'); b.className = 'lbox' + (hidden ? '' : ' ghost'); b.textContent = hidden ? '' : ch; row.appendChild(b); return b; });
+  let pos = 0;
+  const kb = buildKeyboard($('opts'), press);
+  const glow = () => kb.querySelectorAll('.key').forEach(x => x.classList.toggle('glow', hint && x.dataset.k === target[pos]));
+  boxes[0].classList.add('cur'); glow();
+  function press(k) {
+    if (state.busy || k === 'BACK' || k === 'SPACE') return;
+    if (k === target[pos]) {
+      boxes[pos].textContent = disp[pos]; boxes[pos].classList.remove('cur', 'ghost'); boxes[pos].classList.add('ok');
+      pos++; sTap();
+      if (pos === target.length) { kbHandler = null; win(msg); return; }
+      say(k.toLowerCase(), false);
+      boxes[pos].classList.add('cur'); glow();
+    } else {
+      const el = kb.querySelector(`.key[data-k="${k}"]`); if (el) shake(el);
+      state.errors++; stat(curGame()).ko++; sKo();
+      say(hidden && !hint ? 'Ce n’est pas cette lettre. Écoute bien et réessaie.' : `Non, cherche la lettre ${target[pos].toLowerCase()}.`, false);
+    }
+  }
+  kbHandler = press;
+  setPrompt(prompt);
+}
+function vCopie(L) {
+  const m = one('copie' + L, motsNiveau(L));
+  typeWord(m[0], m[1], { hint: L === 1, prompt: say3('copie', [`Écris le mot ${m[1]}, lettre par lettre !`, `À toi d’écrire ${m[1]} avec le clavier !`]), msg: `Bravo ! Tu as écrit ${m[1]} !` });
+}
+function vDictee(L) {
+  const m = one('dictee' + L, motsNiveau(L));
+  typeWord(m[0], m[1], { hidden: true, hint: L < 3, prompt: L < 3 ? `Écris ${m[1]}. Les lettres à taper vont briller sur le clavier !` : `Dictée ! Écris le mot ${m[1]}.`, msg: `Bravo ! ${m[1]}, c’est parfait !` });
+}
+function vPremiere(L) {
+  const m = one('premiere', MOTS_ECRIRE), first = norm(m[1])[0];
+  const st = $('stage');
+  st.innerHTML = `<div class="big1">${m[0]}</div>` + (L === 1 ? `<div class="wordbox"><span class="hintword"><b>${m[1].toUpperCase()[0]}</b>${m[1].toUpperCase().slice(1)}</span></div>` : '');
+  const kb = buildKeyboard($('opts'), press);
+  function press(k) {
+    if (state.busy || k === 'BACK' || k === 'SPACE') return;
+    if (k === first) { kbHandler = null; kb.querySelector(`.key[data-k="${k}"]`).classList.add('glow'); win(`Bravo ! ${m[1]} commence par ${first.toLowerCase()} !`); }
+    else { const el = kb.querySelector(`.key[data-k="${k}"]`); if (el) shake(el); lose(); }
+  }
+  kbHandler = press;
+  setPrompt(say3('premiere', [`${m[1]} ! Tape la première lettre de ${m[1]}.`, `Par quelle lettre commence ${m[1]} ? Tape-la sur le clavier !`]));
+}
+function vPrenom(L) {
+  const n = data.name && data.name !== 'ma championne' ? data.name : '';
+  if (!n || norm(n).length < 2 || norm(n).length > 12) return vCopie(L);
+  typeWord(data.avatar, norm(n), { hint: L < 3, prompt: `Et si tu écrivais ton prénom, ${n} ?`, msg: `Bravo ${n} ! Tu sais écrire ton prénom !` });
+}
+function roundEcrire(L) { runVariant('ecrire', [vCopie, vPremiere, vDictee, vPrenom], L); }
+
+/* ---------- Mon cahier : écriture libre ---------- */
+function renderPaper() {
+  const t = data.cahier || '';
+  $('paper').innerHTML = (t ? t.replace(/&/g, '&amp;').replace(/</g, '&lt;') : '<span class="ph">Écris ce que tu veux…</span>') + '<span class="caret"></span>';
+}
+function writeKey(k) {
+  let t = data.cahier || '';
+  if (k === 'BACK') t = t.slice(0, -1);
+  else if (k === 'SPACE') { if (t && !t.endsWith(' ')) t += ' '; }
+  else if (t.length < 400) { t += k; say(k.toLowerCase(), false); }
+  data.cahier = t; save(); renderPaper(); sTap();
+}
+$('toWrite').onclick = () => {
+  if (timeUp()) return showPause();
+  show('write'); renderPaper();
+  const box = $('wkb'); box.innerHTML = ''; buildKeyboard(box, writeKey, true);
+  kbHandler = writeKey;
+  say('Écris ce que tu veux ! Appuie sur le haut-parleur pour que je le lise.', false);
+};
+$('readPaper').onclick = () => { const t = (data.cahier || '').trim(); say(t ? t.toLowerCase() : 'Ta page est vide. Écris quelque chose !', false); };
+$('clearPaper').onclick = () => { data.cahier = ''; save(); renderPaper(); };
 
 /* ---------- Album ---------- */
 $('toAlbum').onclick = () => {

@@ -148,6 +148,14 @@ canvas{display:block;touch-action:none}
 .sw{width:42px;height:42px;border-radius:50%;border:3px solid var(--card);box-shadow:0 3px 0 var(--shadow);font-size:1.4rem;display:grid;place-items:center}
 .sw.sel{outline:4px solid var(--ink);outline-offset:2px}
 
+/* Coloriage */
+.colorPick{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:14px}
+.thumb{background:var(--card);border-radius:22px;padding:8px 8px 10px;box-shadow:0 5px 0 var(--shadow);display:flex;flex-direction:column;gap:6px;font-size:1.05rem;font-weight:600}
+.thumb svg{width:100%;height:auto;border-radius:14px;display:block}
+#colorSvg svg{width:100%;height:auto;display:block}
+#colorSvg .z{cursor:pointer}
+.btn.small{display:inline-block;width:auto;padding:10px 18px;font-size:1.1rem;margin:0}
+
 /* Parents & accueil */
 input,select{font-family:inherit;font-size:1.2rem;padding:12px 16px;border-radius:16px;border:3px solid var(--shadow);background:var(--card);color:var(--ink);width:100%;max-width:320px}
 .avatars{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:10px 0 22px}
@@ -203,9 +211,11 @@ th{font-weight:600}
     <p class="hello" id="hello"></p>
     <button class="daily" id="daily"></button>
     <div id="cats"></div>
-    <div class="extras menu">
-      <button class="tile" style="--c:var(--gold)" id="toAlbum"><span class="ic">📒</span><span class="nm">Mon album</span><span class="lv" id="albumCount"></span></button>
+    <h3>🎨 Créer</h3>
+    <div class="menu">
+      <button class="tile" style="--c:var(--pink)" id="toColor"><span class="ic">🖍️</span><span class="nm">Colorier</span><span class="lv">9 dessins</span></button>
       <button class="tile" style="--c:var(--orange)" id="toDraw"><span class="ic">🎨</span><span class="nm">Dessiner</span><span class="lv">Dessin libre</span></button>
+      <button class="tile" style="--c:var(--gold)" id="toAlbum"><span class="ic">📒</span><span class="nm">Mon album</span><span class="lv" id="albumCount"></span></button>
     </div>
     <button class="parentLink" id="toGate">🔒 Espace parents</button>
   </section>
@@ -253,6 +263,24 @@ th{font-weight:600}
     <div class="canvasBox"><canvas id="cv"></canvas></div>
     <div class="palette" id="palette"></div>
     <div class="palette" id="tools"></div>
+  </section>
+
+  <!-- Coloriage -->
+  <section id="color" class="hidden">
+    <div class="bar">
+      <button class="round" data-home aria-label="Retour">🏠</button>
+      <div class="dtitle" id="colorTitle">Coloriage</div>
+      <button class="round" id="colorGallery" aria-label="Autres dessins">🖼️</button>
+    </div>
+    <div class="colorPick" id="colorPick"></div>
+    <div id="colorWork" class="hidden">
+      <div class="canvasBox" id="colorSvg"></div>
+      <div class="palette" id="colorPal"></div>
+      <div class="palette">
+        <button class="btn ghost small" id="colorUndo">↩️ Annuler</button>
+        <button class="btn ghost small" id="colorReset">🔄 Recommencer</button>
+      </div>
+    </div>
   </section>
 
   <!-- Porte parents -->
@@ -329,7 +357,7 @@ const dayStr = (d = new Date()) => d.getFullYear() + '-' + (d.getMonth() + 1) + 
 
 /* ---------- Données ---------- */
 const DEFAULT = { name: '', avatar: '🦄', stars: 0, stickers: [], stats: {}, daily: { date: '', streak: 0 },
-  settings: { voice: true, sfx: true, limit: 0 }, time: { date: '', sec: 0 } };
+  settings: { voice: true, sfx: true, limit: 0 }, time: { date: '', sec: 0 }, recent: {}, colorings: {}, colorDone: {} };
 let data;
 function load() {
   let d = null;
@@ -349,6 +377,20 @@ function load() {
 function save() { try { localStorage.setItem('pm-data', JSON.stringify(data)); } catch (e) {} }
 function stat(g) { return data.stats[g] || (data.stats[g] = { played: 0, ok: 0, ko: 0, level: 1 }); }
 function refreshStars() { $('starCount').textContent = data.stars; }
+
+/* ---------- Anti-répétition : chaque élément revient seulement après les autres ---------- */
+function fresh(key, list, n = 1, keep) {
+  const r = data.recent[key] || (data.recent[key] = []);
+  const id = x => JSON.stringify(x);
+  keep = keep ?? Math.max(1, list.length - 1);
+  const unused = shuffle(list.filter(x => !r.includes(id(x))));
+  const used = list.filter(x => r.includes(id(x))).sort((a, b) => r.indexOf(id(a)) - r.indexOf(id(b)));
+  const out = unused.concat(used).slice(0, n);
+  out.forEach(x => { const i = r.indexOf(id(x)); if (i >= 0) r.splice(i, 1); r.push(id(x)); });
+  while (r.length > keep) r.shift();
+  return shuffle(out);
+}
+const one = (key, list, keep) => fresh(key, list, 1, keep)[0];
 
 /* ---------- Voix et sons ---------- */
 let lastSay = '', frVoice = null;
@@ -385,11 +427,11 @@ function tone(freqs, dur = 0.12, type = 'sine') {
 const sOk = () => tone([660, 880, 1175]);
 const sKo = () => tone([240, 190], 0.14, 'triangle');
 const sTap = () => tone([990], 0.06);
-const BRAVO = ['Bravo !', 'Super !', 'Génial !', 'Tu es trop forte !', 'Excellent !', 'Bien joué !', 'Magnifique !'];
-const ENCORE = ['Presque ! Essaie encore.', 'Oups, regarde bien et réessaie.', 'Pas tout à fait, essaie encore.'];
+const BRAVO = ['Bravo !', 'Super !', 'Génial !', 'Tu es trop forte !', 'Excellent !', 'Bien joué !', 'Magnifique !', 'Waouh, bravo !', 'Tu es une championne !', 'C’est exactement ça !'];
+const ENCORE = ['Presque ! Essaie encore.', 'Oups, regarde bien et réessaie.', 'Pas tout à fait, essaie encore.', 'Ce n’est pas grave, réessaie !', 'Prends ton temps et réessaie.'];
 
 /* ---------- Écrans ---------- */
-const SCREENS = ['setup', 'menu', 'game', 'end', 'album', 'draw', 'gate', 'parent', 'pause'];
+const SCREENS = ['setup', 'menu', 'game', 'end', 'album', 'draw', 'color', 'gate', 'parent', 'pause'];
 let cur = 'menu';
 function show(id) {
   cur = id;
@@ -483,13 +525,13 @@ function win(msg, earn = 1) {
   stat(curGame()).ok++;
   state.round++;
   renderDots();
-  const p = $('pop'); p.innerHTML = '<div>' + pick(['⭐', '💖', '🌈', '🦄', '🌸', '👑']) + '</div>';
-  sOk(); say(msg || pick(BRAVO), false); save();
+  const p = $('pop'); p.innerHTML = '<div>' + one('pop', ['⭐', '💖', '🌈', '🦄', '🌸', '👑', '🎉', '🦋'], 4) + '</div>';
+  sOk(); say(msg && rand(3) ? msg : one('bravo', BRAVO, 4), false); save();
   setTimeout(() => { p.innerHTML = ''; nextRound(); }, 1600);
 }
 function lose() {
   state.errors++; stat(curGame()).ko++;
-  sKo(); say(pick(ENCORE), false); save();
+  sKo(); say(one('encore', ENCORE, 2), false); save();
 }
 function endGame() {
   let extra = '';
@@ -539,50 +581,64 @@ function choices(items, four = false) {
 const emo = (list, ans, msg) => list.map(e => ({ html: e, ok: e === ans, msg }));
 function addCells(arr, cls) { const s = $('stage'); arr.forEach(e => { const c = document.createElement('div'); c.className = cls; c.textContent = e; s.appendChild(c); }); }
 
+/* ---------- Consignes variées ---------- */
+const P = {
+  suite: ['Regarde bien la suite. Qu’est-ce qui vient après ?', 'Qui doit prendre la place du point d’interrogation ?', 'Continue la suite ! Lequel vient ensuite ?', 'Observe bien. Lequel manque à la fin ?'],
+  intrus: ['Trouve celui qui n’est pas de la même famille que les autres.', 'Un petit coquin s’est caché ! Lequel n’est pas comme les autres ?', 'Lequel n’a rien à faire ici ?', 'Cherche l’intrus !'],
+  memo: ['Retourne deux cartes et trouve les paires pareilles.', 'Trouve les cartes jumelles !', 'Cherche les cartes qui vont ensemble !'],
+  ombre: ['À qui est cette ombre ?', 'Devine qui se cache dans cette ombre !', 'Cette ombre, c’est qui ?', 'Retrouve le propriétaire de cette ombre !'],
+  taille: ['Touche du plus petit au plus grand.', 'Range-les ! Commence par le plus petit.', 'Du tout petit au très grand, à toi de ranger !'],
+  compte: ['Compte bien avec ton doigt. Combien y en a-t-il ?', 'Combien en vois-tu ?', 'Compte-les un par un. Combien ?', 'Combien sont-ils ?']
+};
+const ask = (key, list) => setPrompt(one('p-' + key, list, Math.min(2, list.length - 1)));
+const variant = (key, n) => one('v-' + key, Array.from({ length: n }, (_, i) => i), 1);
+
 /* 1. Suites logiques */
-const SUITE_POOL = ['🌸', '💖', '⭐', '🦋', '🌈', '🍓', '🦄', '🌙', '🎀', '🐞', '🌷', '🧁'];
+const SUITE_POOL = ['🌸', '💖', '⭐', '🦋', '🌈', '🍓', '🦄', '🌙', '🎀', '🐞', '🌷', '🧁', '🍭', '🐠', '🍀', '🎈'];
 function roundSuite(L) {
-  const type = pick([['AB', 'AB', 'AAB'], ['AB', 'AAB', 'ABB', 'ABC'], ['ABC', 'AABB', 'ABB', 'ABAC']][L - 1]);
+  const types = [['AB', 'AAB', 'ABB'], ['AB', 'AAB', 'ABB', 'ABC', 'AABB'], ['ABC', 'AABB', 'ABB', 'ABAC', 'ABCC', 'AAB']][L - 1];
+  const type = one('suiteT' + L, types, 2);
   const letters = [...new Set(type)];
-  const chosen = sample(SUITE_POOL, letters.length);
+  const chosen = fresh('suiteE', SUITE_POOL, letters.length, 8);
   const map = {}; letters.forEach((l, i) => map[l] = chosen[i]);
   const pat = [...type].map(l => map[l]), len = pat.length;
   const shown = Math.min(len * 2 + rand(len), 7);
   addCells(Array.from({ length: shown }, (_, i) => pat[i % len]), 'cell');
   addCells(['?'], 'cell q');
   const answer = pat[shown % len];
-  const pool = new Set([answer, ...chosen]);
-  while (pool.size < 3) pool.add(pick(SUITE_POOL));
-  const opts = [answer, ...shuffle([...pool].filter(c => c !== answer)).slice(0, 2)];
-  setPrompt('Regarde bien la suite. Qu’est-ce qui vient après ?');
-  choices(emo(shuffle(opts), answer));
+  const others = shuffle([...new Set(chosen.filter(c => c !== answer))]);
+  while (others.length < 2) { const x = pick(SUITE_POOL); if (x !== answer && !others.includes(x)) others.push(x); }
+  ask('suite', P.suite);
+  choices(emo(shuffle([answer, ...others.slice(0, 2)]), answer));
 }
 
 /* 2. L’intrus */
 const FAMILLES = {
-  fruits: ['🍎', '🍌', '🍇', '🍓', '🍐', '🍒', '🍑', '🍍', '🍉'],
-  animaux: ['🐶', '🐱', '🐰', '🐻', '🐼', '🦊', '🐸', '🐵', '🐷'],
-  vehicules: ['🚗', '🚌', '🚲', '🚀', '✈️', '🚂', '🚜', '🚁', '⛵'],
-  vetements: ['👕', '👖', '👗', '🧦', '🧢', '👟', '🧤', '🧣'],
+  fruits: ['🍎', '🍌', '🍇', '🍓', '🍐', '🍒', '🍑', '🍍', '🍉', '🥝', '🍋'],
+  animaux: ['🐶', '🐱', '🐰', '🐻', '🐼', '🦊', '🐸', '🐵', '🐷', '🐮', '🐯'],
+  vehicules: ['🚗', '🚌', '🚲', '🚀', '✈️', '🚂', '🚜', '🚁', '⛵', '🚒'],
+  vetements: ['👕', '👖', '👗', '🧦', '🧢', '👟', '🧤', '🧣', '👒'],
   meteo: ['☀️', '🌧️', '❄️', '⛈️', '🌈', '☁️'],
   instruments: ['🎸', '🎹', '🥁', '🎺', '🎻'],
-  mer: ['🐟', '🐙', '🦀', '🐬', '🐳', '🦈']
+  mer: ['🐟', '🐙', '🦀', '🐬', '🐳', '🦈', '🐠'],
+  legumes: ['🥕', '🥦', '🌽', '🍅', '🥔', '🍆'],
+  sport: ['⚽', '🏀', '🎾', '🏐', '🏈']
 };
 function roundIntrus(L) {
-  const keys = L === 1 ? ['fruits', 'animaux', 'vehicules', 'vetements'] : Object.keys(FAMILLES);
-  let [k1, k2] = sample(keys, 2);
-  if (L === 3 && rand(2)) { k1 = 'animaux'; k2 = 'mer'; }
+  const keys = L === 1 ? ['fruits', 'animaux', 'vehicules', 'vetements', 'sport'] : Object.keys(FAMILLES);
+  const k1 = one('intrusF' + L, keys);
+  const k2 = pick(keys.filter(k => k !== k1));
   const group = sample(FAMILLES[k1], L === 3 ? 4 : 3);
-  const odd = pick(FAMILLES[k2]);
-  setPrompt('Trouve celui qui n’est pas de la même famille que les autres.');
+  const odd = one('intrusO', FAMILLES[k2]);
+  ask('intrus', P.intrus);
   choices(emo(shuffle([...group, odd]), odd), true);
 }
 
 /* 3. Mémoire */
-const MEMO_POOL = ['🦄', '🐱', '🐰', '🦋', '🐼', '🧁', '🌈', '🍓', '👑', '🎀', '🌸', '🐬'];
+const MEMO_POOL = ['🦄', '🐱', '🐰', '🦋', '🐼', '🧁', '🌈', '🍓', '👑', '🎀', '🌸', '🐬', '🍭', '🐞', '🦊', '🌻', '🐧', '🍩'];
 function roundMemo(L) {
   const n = [3, 4, 6][L - 1];
-  const pairs = sample(MEMO_POOL, n);
+  const pairs = fresh('memo', MEMO_POOL, n, 10);
   const deck = shuffle([...pairs, ...pairs]);
   const grid = document.createElement('div'); grid.className = 'mem';
   $('opts').appendChild(grid);
@@ -601,7 +657,7 @@ function roundMemo(L) {
           a.c.classList.add('done'); b.c.classList.add('done');
           open = []; lock = false; found++;
           if (found === n) { state.errors = Math.max(0, misses - n); win('Bravo ! Tu as trouvé toutes les paires !', 3); }
-          else { tone([880, 1175], 0.08); say('Une paire !', false); }
+          else { tone([880, 1175], 0.08); say(one('memoOk', ['Une paire !', 'Bien trouvé !', 'Et une de plus !'], 1), false); }
         }, 400);
       } else {
         misses++;
@@ -610,16 +666,16 @@ function roundMemo(L) {
     };
     grid.appendChild(c);
   });
-  setPrompt('Retourne deux cartes et trouve les paires pareilles.');
+  ask('memo', P.memo);
 }
 
 /* 4. Les ombres */
-const OMBRE_POOL = ['🐘', '🦒', '🐢', '🦋', '🐌', '🦀', '🐇', '🐓', '🌵', '🎸', '✂️', '☂️', '🚲', '🦕', '🐙', '🔑', '🍄', '🐳', '🦄', '🎠'];
+const OMBRE_POOL = ['🐘', '🦒', '🐢', '🦋', '🐌', '🦀', '🐇', '🐓', '🌵', '🎸', '✂️', '☂️', '🚲', '🦕', '🐙', '🔑', '🍄', '🐳', '🦄', '🎠', '🦩', '🐿️', '🦔', '🏰', '🚁', '🍐'];
 function roundOmbre(L) {
-  const list = sample(OMBRE_POOL, L === 3 ? 4 : 3);
-  const target = list[0];
+  const target = one('ombre', OMBRE_POOL);
+  const list = [target, ...sample(OMBRE_POOL.filter(x => x !== target), L === 3 ? 3 : 2)];
   addCells([target], 'shadow');
-  setPrompt('À qui est cette ombre ?');
+  ask('ombre', P.ombre);
   choices(emo(shuffle(list), target), true);
 }
 
@@ -632,6 +688,7 @@ const COLORS = [
   { hex: '#F2545B', m: 'rouge', f: 'rouge' }, { hex: '#3D8BFD', m: 'bleu', f: 'bleue' }, { hex: '#FFC93C', m: 'jaune', f: 'jaune' },
   { hex: '#2FBF71', m: 'vert', f: 'verte' }, { hex: '#FF7EB6', m: 'rose', f: 'rose' }, { hex: '#9B5DE5', m: 'violet', f: 'violette' }
 ];
+const COMBOS = SHAPES.flatMap(s => COLORS.map(c => ({ s, c })));
 function shapeSvg(k, hex) {
   const star = (() => { const p = []; for (let i = 0; i < 10; i++) { const r = i % 2 ? 19 : 44, a = Math.PI / 5 * i - Math.PI / 2; p.push((50 + r * Math.cos(a)).toFixed(1) + ',' + (54 + r * Math.sin(a)).toFixed(1)); } return p.join(' '); })();
   const body = {
@@ -645,13 +702,15 @@ function shapeSvg(k, hex) {
 }
 function roundFormes(L) {
   if (L === 1) {
-    const list = sample(SHAPES, 3); const t = list[0];
-    setPrompt(`Touche ${t.art}${t.k}.`);
+    const t = one('formeS', SHAPES);
+    const list = [t, ...sample(SHAPES.filter(s => s !== t), 2)];
+    const name = t.art + t.k;
+    setPrompt([`Touche ${name}.`, `Où est ${name} ?`, `Montre-moi ${name} !`][variant('forme', 3)]);
     choices(shuffle(list).map(s => ({ html: shapeSvg(s.k, pick(COLORS).hex), aria: s.k, ok: s === t })));
     return;
   }
   const n = L === 2 ? 3 : 4;
-  const t = { s: pick(SHAPES), c: pick(COLORS) };
+  const t = one('formeC', COMBOS);
   const items = [t]; const key = x => x.s.k + x.c.m;
   const tries = [
     { s: t.s, c: pick(COLORS.filter(c => c !== t.c)) },
@@ -661,17 +720,19 @@ function roundFormes(L) {
     const cand = tries.shift() || { s: pick(SHAPES), c: pick(COLORS) };
     if (!items.some(x => key(x) === key(cand))) items.push(cand);
   }
-  setPrompt(`Touche ${t.s.art}${t.s.k} ${t.c[t.s.g]}.`);
+  const name = `${t.s.art}${t.s.k} ${t.c[t.s.g]}`;
+  setPrompt([`Touche ${name}.`, `Où est ${name} ?`, `Montre-moi ${name} !`][variant('forme', 3)]);
   choices(shuffle(items).map(x => ({ html: shapeSvg(x.s.k, x.c.hex), aria: x.s.k + ' ' + x.c[x.s.g], ok: x === t })), true);
 }
 
-/* 6. Petit ou grand : ranger dans l’ordre */
+/* 6. Petit ou grand */
+const TAILLE_POOL = ['🐻', '🌸', '⭐', '🐘', '🍓', '🎈', '🐟', '🦋', '🦄', '🧁', '🐢', '🍄', '🌻', '🐳', '🍩'];
 function roundTaille(L) {
   const n = [3, 4, 5][L - 1];
-  const e = pick(['🐻', '🌸', '⭐', '🐘', '🍓', '🎈', '🐟', '🦋', '🦄', '🧁']);
+  const e = one('taille', TAILLE_POOL);
   const sizes = Array.from({ length: n }, (_, i) => 1.4 + i * (3.2 / (n - 1)));
   let next = 0;
-  setPrompt('Touche du plus petit au plus grand.');
+  ask('taille', P.taille);
   const box = $('opts');
   shuffle(sizes.map((s, i) => ({ s, i }))).forEach(it => {
     const b = document.createElement('button');
@@ -682,7 +743,7 @@ function roundTaille(L) {
       if (it.i === next) {
         next++; b.classList.add('oui'); sTap();
         const bd = document.createElement('span'); bd.className = 'badge'; bd.textContent = next; b.appendChild(bd);
-        if (next === n) win('Bravo ! Tout est bien rangé !');
+        if (next === n) win(one('tailleOk', ['Bravo ! Tout est bien rangé !', 'Parfait, c’est dans le bon ordre !', 'Super rangement !'], 1));
       } else { b.classList.remove('non'); void b.offsetWidth; b.classList.add('non'); setTimeout(() => b.classList.remove('non'), 450); lose(); }
     };
     box.appendChild(b);
@@ -690,27 +751,31 @@ function roundTaille(L) {
 }
 
 /* 7. Compter */
-const COMPTE_POOL = ['🐞', '🍓', '⭐', '🐟', '🎈', '🌼', '🐥', '🍪', '🦋', '🧁'];
+const COMPTE_POOL = ['🐞', '🍓', '⭐', '🐟', '🎈', '🌼', '🐥', '🍪', '🦋', '🧁', '🍒', '🐌', '🌟', '🍬'];
 function roundCompte(L) {
-  const max = [5, 10, 12][L - 1];
-  const n = L === 3 ? 4 + rand(max - 3) : 1 + rand(max);
-  addCells(Array(n).fill(pick(COMPTE_POOL)), 'count');
+  const range = L === 3 ? Array.from({ length: 9 }, (_, i) => i + 4) : Array.from({ length: L === 1 ? 5 : 10 }, (_, i) => i + 1);
+  const n = one('compteN' + L, range, 3);
+  addCells(Array(n).fill(one('compteE', COMPTE_POOL)), 'count');
   const set = new Set([n]);
   const k = L === 3 ? 4 : 3;
   while (set.size < k) { const d = n + (rand(5) - 2); if (d >= 1 && d <= 15) set.add(d); }
-  setPrompt('Compte bien avec ton doigt. Combien y en a-t-il ?');
+  ask('compte', P.compte);
   choices(shuffle([...set]).map(v => ({ html: String(v), ok: v === n, cls: 'num', msg: `Bravo ! Il y en a ${n} !` })), true);
 }
 
 /* 8. Le plus, le moins */
+const PLUS_POOL = ['🍭', '🌸', '🐣', '🍓', '⭐', '🎈', '🍒', '🐞', '💎', '🍪'];
 function roundPlus(L) {
   const max = [5, 8, 10][L - 1];
-  let a = 1 + rand(max), b;
-  do { b = 1 + rand(max); } while (b === a || (L === 1 && Math.abs(a - b) < 2));
+  const pairs = [];
+  for (let a = 1; a <= max; a++) for (let b = 1; b <= max; b++) if (a !== b && (L > 1 || Math.abs(a - b) >= 2)) pairs.push([a, b]);
+  const [a, b] = one('plusN' + L, pairs, 10);
   const moins = L > 1 && rand(2) === 1;
-  const e = pick(['🍭', '🌸', '🐣', '🍓', '⭐', '🎈']);
+  const e = one('plusE', PLUS_POOL);
   const good = moins ? Math.min(a, b) : Math.max(a, b);
-  setPrompt(moins ? 'Touche le groupe où il y en a le moins.' : 'Touche le groupe où il y en a le plus.');
+  setPrompt(moins
+    ? ['Touche le groupe où il y en a le moins.', 'Où y en a-t-il le moins ?', 'Quel groupe est le plus petit ?'][variant('moins', 3)]
+    : ['Touche le groupe où il y en a le plus.', 'Où y en a-t-il le plus ?', 'Quel groupe est le plus gros ?'][variant('plus', 3)]);
   choices([a, b].map(v => ({
     html: e.repeat(v), cls: 'grp', aria: v + ' objets', ok: v === good,
     msg: `Bravo ! ${Math.max(a, b)}, c’est plus que ${Math.min(a, b)}.`
@@ -718,17 +783,19 @@ function roundPlus(L) {
 }
 
 /* 9. Additions */
+const ADD_POOL = ['🍎', '🍓', '🌸', '⭐', '🧁', '🐞', '🎈', '🍒', '🐥'];
 function roundAddition(L) {
   const maxSum = L === 1 ? 5 : 10;
-  const a = 1 + rand(maxSum - 1); const b = 1 + rand(maxSum - a);
-  const s = a + b; const e = pick(['🍎', '🍓', '🌸', '⭐', '🧁']);
-  const st = $('stage');
-  st.innerHTML = L < 3
+  const list = [];
+  for (let a = 1; a < maxSum; a++) for (let b = 1; a + b <= maxSum; b++) list.push([a, b]);
+  const [a, b] = one('add' + L, list, 8);
+  const s = a + b; const e = one('addE', ADD_POOL);
+  $('stage').innerHTML = L < 3
     ? `<div class="eq"><span>${e.repeat(a)}</span><b>+</b><span>${e.repeat(b)}</span><b>=</b><span class="cell q">?</span></div>`
     : `<div class="eq"><span class="n">${a}</span><b>+</b><span class="n">${b}</span><b>=</b><span class="cell q">?</span></div>`;
   const set = new Set([s]);
   while (set.size < 3) { const d = s + (rand(5) - 2); if (d >= 1 && d <= 12) set.add(d); }
-  setPrompt(`Combien font ${a} plus ${b} ?`);
+  setPrompt([`Combien font ${a} plus ${b} ?`, `${a} et encore ${b}, ça fait combien ?`, `Si j’en ai ${a} et que j’en ajoute ${b}, combien j’en ai ?`][variant('add', 3)]);
   choices(shuffle([...set]).map(v => ({ html: String(v), cls: 'num', ok: v === s, msg: `Bravo ! ${a} plus ${b}, ça fait ${s} !` })));
 }
 
@@ -737,29 +804,33 @@ const LETTRES = [
   ['A', 'ananas', '🍍'], ['B', 'ballon', '🎈'], ['C', 'canard', '🦆'], ['D', 'dauphin', '🐬'], ['É', 'éléphant', '🐘'],
   ['F', 'fraise', '🍓'], ['G', 'gâteau', '🎂'], ['K', 'koala', '🐨'], ['L', 'lapin', '🐰'], ['M', 'maison', '🏠'],
   ['N', 'nuage', '☁️'], ['O', 'orange', '🍊'], ['P', 'papillon', '🦋'], ['R', 'robot', '🤖'], ['S', 'soleil', '☀️'],
-  ['T', 'tortue', '🐢'], ['V', 'vache', '🐄'], ['Z', 'zèbre', '🦓']
+  ['T', 'tortue', '🐢'], ['V', 'vache', '🐄'], ['Z', 'zèbre', '🦓'], ['J', 'jupe', '👗'], ['H', 'hibou', '🦉']
 ];
 function roundLettres(L) {
-  const list = sample(LETTRES, L === 3 ? 4 : 3); const t = list[0];
+  const t = one('lettre', LETTRES);
+  const list = [t, ...sample(LETTRES.filter(x => x !== t), L === 3 ? 3 : 2)];
   $('stage').innerHTML = L < 3
     ? `<div class="letter">${t[0]}<small>${t[0].toLowerCase()}</small></div>`
     : `<div class="letter">${t[0].toLowerCase()}</div>`;
-  setPrompt(`Trouve l’image qui commence par la lettre ${t[0]}.`);
+  setPrompt([`Trouve l’image qui commence par la lettre ${t[0]}.`, `Quelle image commence par ${t[0]} ?`, `Voici la lettre ${t[0]}. Quelle image commence comme ça ?`][variant('lettre', 3)]);
   choices(shuffle(list).map(x => ({ html: x[2], aria: x[1], ok: x === t, msg: `Bravo ! ${t[0]} comme ${t[1]} !` })), true);
 }
 
-/* 11. Les syllabes : combien de fois on tape dans ses mains */
+/* 11. Les syllabes */
 const MOTS = [
-  ['🐱', 'chat', 1], ['🐶', 'chien', 1], ['🐻', 'ours', 1], ['🍞', 'pain', 1], ['🌸', 'fleur', 1],
+  ['🐱', 'chat', 1], ['🐶', 'chien', 1], ['🐻', 'ours', 1], ['🍞', 'pain', 1], ['🌸', 'fleur', 1], ['🔑', 'clé', 1], ['🥛', 'lait', 1],
   ['🐟', 'pois-son', 2], ['🐰', 'la-pin', 2], ['🚲', 'vé-lo', 2], ['☀️', 'so-leil', 2], ['🐢', 'tor-tue', 2], ['🤖', 'ro-bot', 2],
-  ['🦋', 'pa-pi-llon', 3], ['🐘', 'é-lé-phant', 3], ['🍍', 'a-na-nas', 3], ['🍫', 'cho-co-lat', 3], ['🦘', 'kan-gou-rou', 3], ['🦕', 'di-no-saure', 3]
+  ['🎁', 'ca-deau', 2], ['⛵', 'ba-teau', 2], ['🏠', 'mai-son', 2], ['🎂', 'gâ-teau', 2],
+  ['🦋', 'pa-pi-llon', 3], ['🐘', 'é-lé-phant', 3], ['🍍', 'a-na-nas', 3], ['🍫', 'cho-co-lat', 3], ['🦘', 'kan-gou-rou', 3],
+  ['🦕', 'di-no-saure', 3], ['☂️', 'pa-ra-pluie', 3], ['📱', 'té-lé-phone', 3],
+  ['💻', 'or-di-na-teur', 4], ['🚁', 'hé-li-cop-tère', 4]
 ];
 function roundSyllabes(L) {
-  const pool = L === 1 ? MOTS.filter(m => m[2] < 3) : MOTS;
-  const m = pick(pool);
+  const max = [2, 3, 4][L - 1];
+  const m = one('sons' + L, MOTS.filter(x => x[2] <= max));
   const word = m[1].replace(/-/g, ''), n = m[2];
   $('stage').innerHTML = `<div style="font-size:5.5rem;line-height:1">${m[0]}</div>`;
-  setPrompt(`${word}. Tape dans tes mains pour chaque morceau du mot. Combien de fois ?`);
+  setPrompt([`${word}. Tape dans tes mains pour chaque morceau du mot. Combien de fois ?`, `Dis ${word} en tapant dans tes mains. Combien de tapes ?`, `${word} ! Combien de fois tu tapes dans tes mains ?`][variant('sons', 3)]);
   const opts = L === 3 ? [1, 2, 3, 4] : [1, 2, 3];
   const spoken = m[1].replace(/-/g, ', ');
   choices(opts.map(v => ({ html: '👏'.repeat(v), cls: 'num', aria: v + ' fois', ok: v === n, msg: `Bravo ! ${spoken}. ${n} fois !` })), L === 3);
@@ -778,7 +849,9 @@ $('toAlbum').onclick = () => {
 /* ---------- Dessin ---------- */
 let cv, ctx, drawing = false, last = null;
 const brush = { color: '#FF5FA2', size: 10, stamp: null };
-const COLS = ['#FF5FA2', '#F2545B', '#FF9F43', '#FFC93C', '#2FBF71', '#3D8BFD', '#9B5DE5', '#8B5A3C', '#222222', '#FFFFFF'];
+const COLS = ['rainbow', '#FF5FA2', '#F2545B', '#FF9F43', '#FFC93C', '#2FBF71', '#3D8BFD', '#9B5DE5', '#8B5A3C', '#222222', '#FFFFFF'];
+let hue = 0;
+const brushColor = () => brush.color === 'rainbow' ? `hsl(${hue = (hue + 5) % 360} 90% 60%)` : brush.color;
 const STAMPS = ['⭐', '💖', '🌸', '🦋', '🦄', '🌈', '👑'];
 function initDraw() {
   cv = $('cv');
@@ -796,7 +869,7 @@ function renderTools() {
   const pal = $('palette'); pal.innerHTML = '';
   COLS.forEach(c => {
     const b = document.createElement('button'); b.className = 'sw' + (!brush.stamp && brush.color === c ? ' sel' : '');
-    b.style.background = c; b.setAttribute('aria-label', c === '#FFFFFF' ? 'Gomme' : 'Couleur');
+    b.style.background = c === 'rainbow' ? 'conic-gradient(#F2545B,#FFC93C,#2FBF71,#3D8BFD,#9B5DE5,#F2545B)' : c; b.setAttribute('aria-label', c === '#FFFFFF' ? 'Gomme' : c === 'rainbow' ? 'Pinceau arc-en-ciel' : 'Couleur');
     if (c === '#FFFFFF') b.textContent = '🧽';
     b.onclick = () => { brush.color = c; brush.stamp = null; renderTools(); };
     pal.appendChild(b);
@@ -825,16 +898,181 @@ $('cv').addEventListener('pointerdown', e => {
   }
   try { cv.setPointerCapture(e.pointerId); } catch (err) {}
   drawing = true; last = p;
-  ctx.fillStyle = brush.color; ctx.beginPath(); ctx.arc(p.x, p.y, brush.size / 2, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = brushColor(); ctx.beginPath(); ctx.arc(p.x, p.y, brush.size / 2, 0, Math.PI * 2); ctx.fill();
 });
 $('cv').addEventListener('pointermove', e => {
   if (!drawing) return; const p = pos(e);
-  ctx.strokeStyle = brush.color; ctx.lineWidth = brush.size;
+  ctx.strokeStyle = brushColor(); ctx.lineWidth = brush.size;
   ctx.beginPath(); ctx.moveTo(last.x, last.y); ctx.lineTo(p.x, p.y); ctx.stroke(); last = p;
 });
 ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => $('cv').addEventListener(ev, () => drawing = false));
 $('clearDraw').onclick = () => { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, +cv.dataset.w, +cv.dataset.h); };
 $('toDraw').onclick = () => { if (timeUp()) return showPause(); show('draw'); initDraw(); renderTools(); say('Dessine ce que tu veux ! Tu peux aussi utiliser les tampons.', false); };
+
+/* ---------- Coloriage ---------- */
+const cloud = (x, y) => `M${x} ${y} Q${x - 12} ${y - 25} ${x + 15} ${y - 25} Q${x + 25} ${y - 50} ${x + 50} ${y - 35} Q${x + 80} ${y - 45} ${x + 80} ${y - 15} Q${x + 95} ${y - 5} ${x + 80} ${y} Z`;
+const band = (R, r) => `M${150 - R} 215 A${R} ${R} 0 0 1 ${150 + R} 215 L${150 + r} 215 A${r} ${r} 0 0 0 ${150 - r} 215 Z`;
+const starPts = (cx, cy, R, r) => { const p = []; for (let i = 0; i < 10; i++) { const d = i % 2 ? r : R, a = Math.PI / 5 * i - Math.PI / 2; p.push((cx + d * Math.cos(a)).toFixed(1) + ',' + (cy + d * Math.sin(a)).toFixed(1)); } return p.join(' '); };
+const PICS = [
+  { id: 'licorne', name: 'La licorne', svg: `
+    <circle class="z" cx="95" cy="95" r="28"/><circle class="z" cx="82" cy="140" r="26"/><circle class="z" cx="92" cy="185" r="24"/><circle class="z" cx="108" cy="225" r="22"/>
+    <polygon class="z" points="118,92 108,40 148,74"/><polygon class="z" points="192,80 220,42 214,100"/>
+    <polygon class="z" points="150,78 178,8 192,84"/>
+    <ellipse class="z" cx="160" cy="150" rx="70" ry="80"/>
+    <ellipse class="z" cx="178" cy="215" rx="55" ry="38"/>
+    <ellipse class="z" cx="150" cy="140" rx="9" ry="13"/><circle class="z" cx="122" cy="188" r="12"/>
+    <ellipse class="z" cx="162" cy="214" rx="5" ry="8"/><ellipse class="z" cx="196" cy="214" rx="5" ry="8"/>
+    <path class="ln" d="M158 236 Q178 250 198 236"/>
+    <polygon class="z" points="${starPts(255, 60, 26, 11)}"/><polygon class="z" points="${starPts(255, 250, 18, 8)}"/>` },
+  { id: 'maison', name: 'La maison', svg: `
+    <rect class="z" x="0" y="240" width="300" height="60"/>
+    <circle class="z" cx="252" cy="50" r="28"/>
+    <path class="z" d="${cloud(25, 85)}"/>
+    <rect class="z" x="165" y="85" width="20" height="40"/>
+    <rect class="z" x="60" y="140" width="140" height="100"/>
+    <polygon class="z" points="45,145 130,75 215,145"/>
+    <rect class="z" x="112" y="185" width="36" height="55" rx="4"/>
+    <rect class="z" x="75" y="160" width="28" height="28"/><rect class="z" x="158" y="160" width="28" height="28"/>
+    <rect class="z" x="234" y="185" width="16" height="55"/><circle class="z" cx="242" cy="160" r="32"/>` },
+  { id: 'fleur', name: 'La fleur', svg: `
+    <rect class="z" x="145" y="120" width="10" height="100"/>
+    <ellipse class="z" cx="118" cy="185" rx="28" ry="11" transform="rotate(-25 118 185)"/>
+    <ellipse class="z" cx="182" cy="172" rx="28" ry="11" transform="rotate(25 182 172)"/>
+    ${[0, 60, 120, 180, 240, 300].map(a => `<ellipse class="z" cx="150" cy="58" rx="20" ry="32" transform="rotate(${a} 150 95)"/>`).join('')}
+    <circle class="z" cx="150" cy="95" r="22"/>
+    <polygon class="z" points="105,230 195,230 182,292 118,292"/>
+    <rect class="z" x="98" y="218" width="104" height="16" rx="4"/>
+    <circle class="z" cx="40" cy="40" r="10"/><circle class="z" cx="262" cy="60" r="8"/>` },
+  { id: 'papillon', name: 'Le papillon', svg: `
+    <path class="ln" d="M144 66 Q130 35 115 30"/><path class="ln" d="M156 66 Q170 35 185 30"/>
+    <circle class="z" cx="115" cy="30" r="7"/><circle class="z" cx="185" cy="30" r="7"/>
+    <ellipse class="z" cx="98" cy="112" rx="58" ry="46" transform="rotate(-20 98 112)"/>
+    <ellipse class="z" cx="202" cy="112" rx="58" ry="46" transform="rotate(20 202 112)"/>
+    <ellipse class="z" cx="108" cy="195" rx="42" ry="36" transform="rotate(20 108 195)"/>
+    <ellipse class="z" cx="192" cy="195" rx="42" ry="36" transform="rotate(-20 192 195)"/>
+    <circle class="z" cx="92" cy="106" r="17"/><circle class="z" cx="208" cy="106" r="17"/>
+    <circle class="z" cx="110" cy="196" r="12"/><circle class="z" cx="190" cy="196" r="12"/>
+    <ellipse class="z" cx="150" cy="155" rx="12" ry="68"/>
+    <circle class="z" cx="150" cy="80" r="16"/>` },
+  { id: 'poisson', name: 'Le poisson', svg: `
+    <path class="z" d="M30 300 Q18 250 40 205 Q52 250 48 300 Z"/><path class="z" d="M255 300 Q250 240 276 198 Q282 250 274 300 Z"/>
+    <path class="z" d="M110 100 Q140 48 188 104 Z"/>
+    <polygon class="z" points="215,150 278,105 266,150 278,195"/>
+    <ellipse class="z" cx="145" cy="150" rx="85" ry="58"/>
+    <path class="z" d="M130 94 Q115 150 130 206 Q150 150 148 93 Z"/>
+    <path class="z" d="M172 98 Q160 150 172 202 Q190 150 188 104 Z"/>
+    <circle class="z" cx="95" cy="135" r="13"/><circle class="z" cx="92" cy="135" r="5"/>
+    <path class="ln" d="M64 162 Q74 168 84 162"/>
+    <circle class="z" cx="55" cy="82" r="10"/><circle class="z" cx="40" cy="52" r="7"/><circle class="z" cx="62" cy="30" r="5"/>` },
+  { id: 'cupcake', name: 'Le cupcake', svg: `
+    <path class="ln" d="M150 62 Q155 45 168 40"/>
+    <polygon class="z" points="85,170 117.5,170 127.5,282 105,282"/><polygon class="z" points="117.5,170 150,170 150,282 127.5,282"/>
+    <polygon class="z" points="150,170 182.5,170 172.5,282 150,282"/><polygon class="z" points="182.5,170 215,170 195,282 172.5,282"/>
+    <path class="z" d="M72 174 Q58 140 95 132 Q95 95 135 100 Q150 72 175 98 Q215 92 208 132 Q242 140 228 174 Z"/>
+    <circle class="z" cx="150" cy="78" r="16"/>
+    <rect class="z" x="104" y="140" width="16" height="7" rx="3" transform="rotate(30 112 143)"/>
+    <rect class="z" x="140" y="118" width="16" height="7" rx="3" transform="rotate(-20 148 121)"/>
+    <rect class="z" x="180" y="142" width="16" height="7" rx="3" transform="rotate(15 188 145)"/>
+    <rect class="z" x="128" y="152" width="16" height="7" rx="3" transform="rotate(-35 136 155)"/>
+    <polygon class="z" points="${starPts(45, 60, 20, 9)}"/><polygon class="z" points="${starPts(258, 85, 16, 7)}"/>` },
+  { id: 'chateau', name: 'Le château', svg: `
+    <rect class="z" x="0" y="260" width="300" height="40"/>
+    <path class="ln" d="M65 58 L65 28"/><path class="ln" d="M235 58 L235 28"/><path class="ln" d="M150 48 L150 20"/>
+    <polygon class="z" points="65,28 90,35 65,42"/><polygon class="z" points="235,28 260,35 235,42"/><polygon class="z" points="150,20 175,27 150,34"/>
+    <rect class="z" x="90" y="150" width="120" height="110"/>
+    <rect class="z" x="125" y="95" width="50" height="55"/><polygon class="z" points="118,97 150,46 182,97"/>
+    <rect class="z" x="40" y="110" width="50" height="150"/><rect class="z" x="210" y="110" width="50" height="150"/>
+    <polygon class="z" points="32,112 65,56 98,112"/><polygon class="z" points="202,112 235,56 268,112"/>
+    <path class="z" d="M128 260 L128 215 Q150 188 172 215 L172 260 Z"/>
+    <rect class="z" x="55" y="150" width="20" height="28" rx="10"/><rect class="z" x="225" y="150" width="20" height="28" rx="10"/>
+    <circle class="z" cx="150" cy="122" r="11"/>` },
+  { id: 'arcenciel', name: 'L’arc-en-ciel', svg: `
+    <circle class="z" cx="250" cy="45" r="24"/>
+    <path class="z" d="${band(130, 114)}"/><path class="z" d="${band(114, 98)}"/><path class="z" d="${band(98, 82)}"/>
+    <path class="z" d="${band(82, 66)}"/><path class="z" d="${band(66, 50)}"/>
+    <path class="z" d="${cloud(5, 240)}"/><path class="z" d="${cloud(210, 240)}"/>
+    <polygon class="z" points="${starPts(40, 50, 18, 8)}"/>
+    <path class="z" d="M150 210 C135 198 128 188 135 180 C141 173 149 177 150 183 C151 177 159 173 165 180 C172 188 165 198 150 210 Z"/>` },
+  { id: 'chat', name: 'Le chat', svg: `
+    <path class="z" d="M215 240 Q278 230 262 168 Q256 158 248 166 Q260 214 210 222 Z"/>
+    <ellipse class="z" cx="150" cy="222" rx="70" ry="60"/>
+    <ellipse class="z" cx="120" cy="278" rx="24" ry="13"/><ellipse class="z" cx="180" cy="278" rx="24" ry="13"/>
+    <polygon class="z" points="100,92 92,38 138,68"/><polygon class="z" points="200,92 208,38 162,68"/>
+    <circle class="z" cx="150" cy="120" r="60"/>
+    <ellipse class="z" cx="128" cy="112" rx="10" ry="14"/><ellipse class="z" cx="172" cy="112" rx="10" ry="14"/>
+    <polygon class="z" points="143,135 157,135 150,144"/>
+    <path class="ln" d="M150 144 Q140 156 132 150 M150 144 Q160 156 168 150"/>
+    <path class="ln" d="M100 132 L70 126 M100 140 L70 144 M200 132 L230 126 M200 140 L230 144"/>
+    <polygon class="z" points="150,184 118,170 118,198"/><polygon class="z" points="150,184 182,170 182,198"/>
+    <circle class="z" cx="150" cy="184" r="9"/>` }
+];
+const CPAL = ['#FF5FA2', '#FFB3D1', '#F2545B', '#FF9F43', '#FFC93C', '#FFF07A', '#2FBF71', '#A6E3A1', '#3D8BFD', '#9FD3FF', '#9B5DE5', '#D2B8FF', '#8B5A3C', '#F6C9A8', '#555555', '#FFFFFF', 'magic'];
+const MAGIC = ['#FF5FA2', '#F2545B', '#FF9F43', '#FFC93C', '#2FBF71', '#3D8BFD', '#9B5DE5', '#FF7EB6', '#5ED3C4'];
+let colorCur = null, colorBrush = '#FF5FA2', undoStack = [];
+function picSvg(p) {
+  return `<svg viewBox="0 0 300 300" role="img" aria-label="${p.name}"><rect width="300" height="300" fill="#fff"/><g stroke="#4A2C55" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" fill="#fff">${p.svg}</g></svg>`;
+}
+function applyFills(root, p) {
+  const saved = data.colorings[p.id] || {};
+  root.querySelectorAll('.z').forEach((el, i) => { el.dataset.i = i; el.setAttribute('fill', saved[i] || '#fff'); });
+  root.querySelectorAll('.ln').forEach(el => el.setAttribute('fill', 'none'));
+}
+function openColorGallery() {
+  if (timeUp()) return showPause();
+  show('color');
+  $('colorWork').classList.add('hidden'); $('colorPick').classList.remove('hidden');
+  $('colorTitle').textContent = 'Coloriage';
+  const g = $('colorPick'); g.innerHTML = '';
+  PICS.forEach(p => {
+    const b = document.createElement('button'); b.className = 'thumb';
+    b.innerHTML = picSvg(p) + `<span>${p.name}${data.colorDone[p.id] ? ' ✅' : ''}</span>`;
+    applyFills(b, p); b.onclick = () => openPic(p); g.appendChild(b);
+  });
+  say('Choisis un dessin à colorier !', false);
+}
+function openPic(p) {
+  colorCur = p; undoStack = [];
+  $('colorPick').classList.add('hidden'); $('colorWork').classList.remove('hidden');
+  $('colorTitle').textContent = p.name;
+  const box = $('colorSvg'); box.innerHTML = picSvg(p); applyFills(box, p);
+  box.querySelectorAll('.z').forEach(el => el.addEventListener('click', () => fillRegion(el)));
+  renderColorPal();
+  say(`${p.name} ! Choisis une couleur, puis touche une partie du dessin.`, false);
+}
+function renderColorPal() {
+  const pal = $('colorPal'); pal.innerHTML = '';
+  CPAL.forEach(c => {
+    const b = document.createElement('button'); b.className = 'sw' + (colorBrush === c ? ' sel' : '');
+    if (c === 'magic') { b.style.background = 'conic-gradient(#FF5FA2,#FFC93C,#2FBF71,#3D8BFD,#9B5DE5,#FF5FA2)'; b.textContent = '✨'; b.setAttribute('aria-label', 'Couleur magique'); }
+    else { b.style.background = c; b.setAttribute('aria-label', 'Couleur'); }
+    b.onclick = () => { colorBrush = c; sTap(); renderColorPal(); };
+    pal.appendChild(b);
+  });
+}
+function storeFill(i, c) {
+  const m = data.colorings[colorCur.id] || (data.colorings[colorCur.id] = {});
+  if (c === '#fff') delete m[i]; else m[i] = c;
+  save();
+}
+function fillRegion(el) {
+  const i = el.dataset.i, prev = el.getAttribute('fill');
+  const c = colorBrush === 'magic' ? pick(MAGIC.filter(x => x !== prev)) : colorBrush;
+  if (prev === c) return;
+  undoStack.push([i, prev]); el.setAttribute('fill', c); storeFill(i, c); sTap();
+  const all = [...$('colorSvg').querySelectorAll('.z')];
+  if (!data.colorDone[colorCur.id] && all.every(x => x.getAttribute('fill') !== '#fff')) {
+    data.colorDone[colorCur.id] = true; data.stars += 2; refreshStars(); save();
+    const p = $('pop'); p.innerHTML = '<div>🎨</div>'; setTimeout(() => p.innerHTML = '', 1000);
+    sOk(); say(one('colorOk', ['Magnifique ! Quel beau coloriage ! Tu gagnes deux étoiles !', 'Waouh, c’est une œuvre d’art ! Deux étoiles pour toi !'], 1), false);
+  }
+}
+$('colorUndo').onclick = () => {
+  const u = undoStack.pop(); if (!u) return;
+  const el = $('colorSvg').querySelector(`.z[data-i="${u[0]}"]`); el.setAttribute('fill', u[1]); storeFill(u[0], u[1]);
+};
+$('colorReset').onclick = () => { data.colorings[colorCur.id] = {}; save(); openPic(colorCur); };
+$('colorGallery').onclick = openColorGallery;
+$('toColor').onclick = openColorGallery;
 
 /* ---------- Avatars et accueil ---------- */
 function renderAvatars(box, onPick) {

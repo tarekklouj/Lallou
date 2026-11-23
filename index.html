@@ -510,8 +510,21 @@ function say(t, remember = true) {
     u.lang = frVoice ? frVoice.lang : 'fr-FR';
     u.rate = data.settings.rate || 0.82; u.pitch = 1.05; u.volume = 1;
     if (frVoice) u.voice = frVoice;
-    sayTimer = setTimeout(() => speechSynthesis.speak(u), 80);
-  } catch (e) {}
+    u.onend = u.onerror = () => { speakEnd = Date.now(); };
+    speakPending = true;
+    sayTimer = setTimeout(() => { speakPending = false; speechSynthesis.speak(u); }, 80);
+  } catch (e) { speakPending = false; }
+}
+/* Attend que la voix ait fini de parler avant de continuer */
+let speakPending = false, speakEnd = 0;
+function afterSpeech(cb, minMs = 1200, maxMs = 12000) {
+  const t0 = Date.now();
+  const iv = setInterval(() => {
+    const el = Date.now() - t0;
+    let busy = false;
+    try { busy = speakPending || speechSynthesis.speaking || speechSynthesis.pending; } catch (e) {}
+    if ((el >= minMs && !busy && Date.now() - speakEnd > 350) || el >= maxMs) { clearInterval(iv); cb(); }
+  }, 150);
 }
 function hush() { try { speechSynthesis.cancel(); } catch (e) {} }
 let actx = null;
@@ -640,7 +653,8 @@ function win(msg, earn = 1) {
   renderDots();
   const p = $('pop'); p.innerHTML = '<div>' + one('pop', ['⭐', '💖', '🌈', '🦄', '🌸', '👑', '🎉', '🦋'], 4) + '</div>';
   sOk(); say(msg && rand(3) ? msg : one('bravo', BRAVO, 4), false); save();
-  setTimeout(() => { p.innerHTML = ''; nextRound(); }, 1600);
+  const tk = state.token;
+  afterSpeech(() => { p.innerHTML = ''; if (tk === state.token) nextRound(); }, 1500);
 }
 function lose() {
   state.errors++; stat(curGame()).ko++;

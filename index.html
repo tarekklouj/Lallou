@@ -579,7 +579,7 @@ function renderMenu() {
 
 /* ---------- Déroulé d’une partie ---------- */
 let state = null;
-const curGame = () => state.mode === 'daily' ? state.seq[state.round] : state.id;
+const curGame = () => state.seq ? state.seq[Math.min(state.round, state.seq.length - 1)] : state.id;
 const level = () => stat(curGame()).level;
 
 function startGame(id) {

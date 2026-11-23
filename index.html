@@ -447,7 +447,8 @@ const dayStr = (d = new Date()) => d.getFullYear() + '-' + (d.getMonth() + 1) + 
 const DEFAULT = { name: '', avatar: '🦉', stars: 0, stickers: [], stats: {}, daily: { date: '', streak: 0 },
   settings: { voice: true, sfx: true, limit: 0 }, time: { date: '', sec: 0 }, recent: {}, colorings: {}, colorDone: {} };
 let data;
-function migrateRate() { if (data.avatar === '🦄') data.avatar = '🦉'; if (!data.settings.rateV2) { data.settings.rate = Math.max(0.4, Math.round(((data.settings.rate || 0.82) - 0.17) * 100) / 100); data.settings.rateV2 = true; save(); } }
+function migrateRate() { if (data.avatar === '🦄') data.avatar = '🦉'; if (!data.settings.rateV2) { data.settings.rate = Math.max(0.4, Math.round(((data.settings.rate || 0.82) - 0.17) * 100) / 100); data.settings.rateV2 = true; save(); }
+  if (!data.settings.v3) { data.settings.rate = Math.min(data.settings.rate || 0.55, 0.55); data.settings.voiceName = ''; data.settings.v3 = true; save(); } }
 function load() {
   let d = null;
   try { d = JSON.parse(localStorage.getItem('pm-data') || 'null'); } catch (e) {}
@@ -495,11 +496,14 @@ function voiceScore(v) {
   if (v.localService === false) s += 3;
   return s;
 }
+function cleanVoiceName(v) { return v.name.replace(/Microsoft |Google /, '').replace(/\s*-\s*French.*$/i, '').replace(/\s*\(.*?\)\s*/g, ' ').trim(); }
 function loadVoice() {
   try {
-    frVoices = speechSynthesis.getVoices().filter(v => (v.lang || '').toLowerCase().startsWith('fr')).sort((a, b) => voiceScore(b) - voiceScore(a));
+    const all = speechSynthesis.getVoices().filter(v => (v.lang || '').toLowerCase().startsWith('fr')).sort((a, b) => voiceScore(b) - voiceScore(a));
+    const seen = new Set();
+    frVoices = all.filter(v => { const k = cleanVoiceName(v).toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; });
     const want = typeof data !== 'undefined' && data && data.settings && data.settings.voiceName;
-    frVoice = frVoices.find(v => v.name === want) || frVoices[0] || null;
+    frVoice = frVoices.find(v => want && (v.voiceURI === want || v.name === want)) || frVoices.find(v => /am[ée]lie/i.test(v.name)) || frVoices[0] || null;
     if (typeof data !== 'undefined' && data) fillVoiceList();
   } catch (e) {}
 }
@@ -514,7 +518,7 @@ function say(t, remember = true) {
     const us = parts.map(p => {
       const u = new SpeechSynthesisUtterance(p);
       u.lang = frVoice ? frVoice.lang : 'fr-FR';
-      u.rate = data.settings.rate || 0.65; u.pitch = 1.05; u.volume = 1;
+      u.rate = data.settings.rate || 0.55; u.pitch = 1.05; u.volume = 1;
       if (frVoice) u.voice = frVoice;
       u.onend = u.onerror = () => { speakEnd = Date.now(); };
       return u;
@@ -1779,7 +1783,7 @@ $('gateIn').addEventListener('keydown', e => { if (e.key === 'Enter') $('gateOk'
 
 function openParent() {
   $('pName').value = data.name;
-  loadVoice(); if (!(data.settings.rate >= 0.4 && data.settings.rate <= 1)) data.settings.rate = 0.65;
+  loadVoice(); if (!(data.settings.rate >= 0.4 && data.settings.rate <= 1)) data.settings.rate = 0.55;
   $('pRate').value = String(data.settings.rate); $('pRateLbl').textContent = rateLabel(data.settings.rate);
   renderAvatars($('avParent'));
   $('pLimit').value = String(data.settings.limit);
@@ -1807,18 +1811,19 @@ $('pSfx').onclick = () => { data.settings.sfx = !data.settings.sfx; save(); $('p
 function fillVoiceList() {
   const sel = $('pVoiceName'); if (!sel) return;
   sel.innerHTML = '';
-  frVoices.forEach((v, i) => {
-    const o = document.createElement('option'); o.value = v.name;
-    o.textContent = v.name.replace(/Microsoft |Google /, '').replace(/\s*-\s*French.*$/i, '') + (i === 0 ? ' ⭐' : '');
+  const rec = frVoices.find(v => /am[ée]lie/i.test(v.name)) || frVoices[0];
+  frVoices.forEach(v => {
+    const o = document.createElement('option'); o.value = v.voiceURI || v.name;
+    o.textContent = cleanVoiceName(v) + (/-ca/i.test(v.lang || '') ? ' (Canada)' : '') + (v === rec ? ' ⭐' : '');
     sel.appendChild(o);
   });
-  if (frVoice) sel.value = frVoice.name;
-  $('pVoiceNote').textContent = frVoices.length ? '⭐ = la voix la plus naturelle trouvée sur cet appareil (choisie automatiquement).' : 'Aucune voix française n’a été trouvée sur cet appareil.';
+  if (frVoice) sel.value = frVoice.voiceURI || frVoice.name;
+  $('pVoiceNote').textContent = frVoices.length ? '⭐ = voix conseillée, choisie automatiquement.' : 'Aucune voix française n’a été trouvée sur cet appareil.';
 }
 $('pVoiceName').onchange = () => { data.settings.voiceName = $('pVoiceName').value; save(); loadVoice(); say(`Coucou ${kidName()} ! On joue ensemble ?`, false); };
 const rateLabel = r => r <= 0.5 ? '(très, très lente)' : r <= 0.65 ? '(très lente)' : r <= 0.8 ? '(lente)' : '(normale)';
 $('pRate').oninput = () => { $('pRateLbl').textContent = rateLabel(parseFloat($('pRate').value)); };
-$('pRate').onchange = () => { data.settings.rate = parseFloat($('pRate').value) || 0.65; save(); say('Voilà, je parle comme ça maintenant.', false); };
+$('pRate').onchange = () => { data.settings.rate = parseFloat($('pRate').value) || 0.55; save(); say('Voilà, je parle comme ça maintenant.', false); };
 $('pTest').onclick = () => say(`Coucou ${kidName()} ! Bravo, tu es super forte. On joue ensemble ?`, false);
 $('pReset').onclick = () => {
   if (!confirm('Effacer toutes les étoiles, autocollants, niveaux et le profil ?')) return;
